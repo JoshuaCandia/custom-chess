@@ -373,6 +373,15 @@ io.on("connection", (socket) => {
   socket.on("webrtc-answer",        ({ roomId, sdp       }) => relayToOther("webrtc-answer",        roomId, { sdp }));
   socket.on("webrtc-ice-candidate", ({ roomId, candidate }) => relayToOther("webrtc-ice-candidate", roomId, { candidate }));
 
+  // ── leave-room (cancel waiting) ────────────────────────────────────────────
+  socket.on("leave-room", ({ roomId }: { roomId: string }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== "waiting") return;
+    rooms.delete(roomId);
+    socket.leave(roomId);
+    console.log(`[leave-room] ${roomId} deleted`);
+  });
+
   // ── resign ─────────────────────────────────────────────────────────────────
   socket.on("resign", ({ roomId }: { roomId: string }) => {
     const room = rooms.get(roomId);

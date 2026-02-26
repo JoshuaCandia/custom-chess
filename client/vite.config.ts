@@ -5,6 +5,8 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: true,         // bind to 0.0.0.0 so tunnel tools can reach it
+    allowedHosts: true, // accept any Host header (ngrok, localtunnel, etc.)
     proxy: {
       "/socket.io": {
         target: "http://localhost:3001",

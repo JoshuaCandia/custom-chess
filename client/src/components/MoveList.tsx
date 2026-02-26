@@ -57,7 +57,7 @@ export function MoveList({ moves, height }: MoveListProps) {
         {pairs.length === 0 ? (
           <p
             className="text-center py-6 text-xs"
-            style={{ color: "rgba(232,213,183,0.2)" }}
+            style={{ color: "var(--c-text-faint)" }}
           >
             —
           </p>
@@ -79,7 +79,7 @@ export function MoveList({ moves, height }: MoveListProps) {
                 {/* Move number */}
                 <span
                   style={{
-                    color: "rgba(232,213,183,0.28)",
+                    color: "var(--c-text-faint)",
                     minWidth: "20px",
                     flexShrink: 0,
                   }}
@@ -91,7 +91,7 @@ export function MoveList({ moves, height }: MoveListProps) {
                 <span
                   style={{
                     flex: 1,
-                    color: wActive ? "#e8d5b7" : "rgba(232,213,183,0.6)",
+                    color: wActive ? "var(--c-text)" : "var(--c-text-muted)",
                     fontWeight: wActive ? 600 : 400,
                   }}
                 >
@@ -105,7 +105,7 @@ export function MoveList({ moves, height }: MoveListProps) {
                 <span
                   style={{
                     flex: 1,
-                    color: bActive ? "#e8d5b7" : "rgba(232,213,183,0.6)",
+                    color: bActive ? "var(--c-text)" : "var(--c-text-muted)",
                     fontWeight: bActive ? 600 : 400,
                   }}
                 >

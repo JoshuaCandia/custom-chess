@@ -55,8 +55,8 @@ export function SidePanel({
       style={{
         flex: 1,
         minHeight: 0,
-        background: "rgba(240,217,181,0.04)",
-        border: "1px solid rgba(200,162,96,0.18)",
+        background: "var(--c-surface-2)",
+        border: "1px solid var(--c-border)",
         borderRadius: "8px",
         overflow: "hidden",
       }}
@@ -64,7 +64,7 @@ export function SidePanel({
       {/* Tab bar */}
       <div
         className="flex shrink-0"
-        style={{ borderBottom: "1px solid rgba(200,162,96,0.12)" }}
+        style={{ borderBottom: "1px solid var(--c-border-faint)" }}
       >
         {(["moves", "chat"] as Tab[]).map((t) => {
           const active = tab === t;
@@ -74,9 +74,9 @@ export function SidePanel({
               onClick={() => setTab(t)}
               className="flex-1 py-2 text-xs font-medium capitalize relative transition-colors"
               style={{
-                color: active ? "#c8a56a" : "rgba(232,213,183,0.35)",
-                background: active ? "rgba(200,162,96,0.08)" : "transparent",
-                borderBottom: active ? "2px solid #c8a56a" : "2px solid transparent",
+                color: active ? "var(--c-accent)" : "var(--c-text-faint)",
+                background: active ? "var(--c-accent-dim)" : "transparent",
+                borderBottom: active ? "2px solid var(--c-accent)" : "2px solid transparent",
               }}
             >
               {t}
@@ -84,8 +84,8 @@ export function SidePanel({
                 <span
                   className="absolute top-1.5 right-2 text-[9px] font-bold rounded-full flex items-center justify-center"
                   style={{
-                    background: "#c8a56a",
-                    color: "#1c1512",
+                    background: "var(--c-accent)",
+                    color: "var(--c-bg)",
                     minWidth: "14px",
                     height: "14px",
                     padding: "0 3px",
@@ -112,7 +112,7 @@ export function SidePanel({
             {chatMessages.length === 0 ? (
               <p
                 className="text-center text-xs py-6"
-                style={{ color: "rgba(232,213,183,0.18)" }}
+                style={{ color: "var(--c-text-faint)" }}
               >
                 No messages yet
               </p>
@@ -129,9 +129,9 @@ export function SidePanel({
                       className="text-xs px-2.5 py-1.5 rounded-xl max-w-full break-words"
                       style={{
                         background: isMe
-                          ? "rgba(200,162,96,0.18)"
-                          : "rgba(240,217,181,0.08)",
-                        color: isMe ? "#e8d5b7" : "rgba(232,213,183,0.75)",
+                          ? "var(--c-accent-dim)"
+                          : "var(--c-surface-2)",
+                        color: isMe ? "var(--c-text)" : "var(--c-text-muted)",
                         borderRadius: isMe
                           ? "12px 12px 4px 12px"
                           : "12px 12px 12px 4px",
@@ -152,7 +152,7 @@ export function SidePanel({
           <form
             onSubmit={handleSend}
             className="shrink-0 flex gap-1.5 px-2 py-2"
-            style={{ borderTop: "1px solid rgba(200,162,96,0.1)" }}
+            style={{ borderTop: "1px solid var(--c-border-faint)" }}
           >
             <input
               ref={inputRef}
@@ -164,16 +164,16 @@ export function SidePanel({
               maxLength={200}
               className="flex-1 min-w-0 text-xs px-2 py-1.5 rounded-lg outline-none"
               style={{
-                background: "rgba(240,217,181,0.07)",
-                border: "1px solid rgba(200,162,96,0.18)",
-                color: "#e8d5b7",
+                background: "var(--c-surface-2)",
+                border: "1px solid var(--c-border)",
+                color: "var(--c-text)",
                 opacity: disabled ? 0.4 : 1,
               }}
               onFocus={(e) =>
-                (e.currentTarget.style.borderColor = "rgba(200,162,96,0.45)")
+                (e.currentTarget.style.borderColor = "var(--c-accent)")
               }
               onBlur={(e) =>
-                (e.currentTarget.style.borderColor = "rgba(200,162,96,0.18)")
+                (e.currentTarget.style.borderColor = "var(--c-border)")
               }
             />
             <button
@@ -183,10 +183,10 @@ export function SidePanel({
               style={{
                 background:
                   disabled || !input.trim()
-                    ? "rgba(200,162,96,0.1)"
-                    : "#c8a56a",
+                    ? "var(--c-accent-dim)"
+                    : "var(--c-accent)",
                 color:
-                  disabled || !input.trim() ? "rgba(232,213,183,0.25)" : "#1c1512",
+                  disabled || !input.trim() ? "var(--c-text-faint)" : "var(--c-bg)",
               }}
             >
               ↑

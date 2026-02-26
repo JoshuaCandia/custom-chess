@@ -42,9 +42,9 @@ export function PlayerRow({
     <div
       className="flex items-center justify-between shrink-0 px-3 py-2 rounded-xl transition-all"
       style={{
-        background: isActive ? "rgba(200,162,96,0.08)" : "transparent",
+        background: isActive ? "var(--c-accent-dim)" : "transparent",
         border: "1px solid",
-        borderColor: isActive ? "rgba(200,162,96,0.3)" : "rgba(200,162,96,0.08)",
+        borderColor: isActive ? "var(--c-border)" : "var(--c-border-faint)",
       }}
     >
       {/* Left: color dot + name */}
@@ -59,13 +59,13 @@ export function PlayerRow({
         />
         <span
           className="text-sm font-medium leading-none"
-          style={{ color: isActive ? "#e8d5b7" : "rgba(232,213,183,0.55)" }}
+          style={{ color: isActive ? "var(--c-text)" : "var(--c-text-muted)" }}
         >
           {username ?? label}
         </span>
         <span
           className="text-xs leading-none"
-          style={{ color: "rgba(232,213,183,0.3)" }}
+          style={{ color: "var(--c-text-faint)" }}
         >
           {colorSide === "w" ? "White" : "Black"}
         </span>
@@ -79,8 +79,8 @@ export function PlayerRow({
             color: isLow
               ? "#f87171"
               : isActive
-              ? "#e8d5b7"
-              : "rgba(232,213,183,0.4)",
+              ? "var(--c-text)"
+              : "var(--c-text-faint)",
           }}
         >
           {String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}

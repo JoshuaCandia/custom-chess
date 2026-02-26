@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, Outlet, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
 import { useAuthStore } from "./store/authStore";
 import { useSocket } from "./hooks/useSocket";
@@ -67,9 +68,11 @@ function ProtectedLayout() {
 function WaitingScreen({
   roomId,
   timeControl,
+  onCancel,
 }: {
   roomId: string;
   timeControl: number | null;
+  onCancel: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -92,7 +95,7 @@ function WaitingScreen({
       <div className="flex flex-col items-center gap-2">
         <span style={{ fontSize: "2.5rem" }}>♟</span>
         <h2 className="text-xl font-semibold">Waiting for opponent</h2>
-        <p className="text-sm" style={{ color: "rgba(232,213,183,0.5)" }}>
+        <p className="text-sm" style={{ color: "var(--c-text-muted)" }}>
           Share this code to invite someone
         </p>
       </div>
@@ -100,8 +103,8 @@ function WaitingScreen({
       <div
         className="flex items-center gap-3 px-5 py-3 rounded-2xl"
         style={{
-          background: "rgba(240,217,181,0.06)",
-          border: "1px solid rgba(200,162,96,0.25)",
+          background: "var(--c-surface-2)",
+          border: "1px solid var(--c-border)",
         }}
       >
         <span className="font-mono text-2xl font-bold tracking-[0.15em]">{roomId}</span>
@@ -109,9 +112,9 @@ function WaitingScreen({
           onClick={copy}
           className="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
           style={{
-            background: copied ? "rgba(74,222,128,0.15)" : "rgba(240,217,181,0.08)",
-            color: copied ? "#86efac" : "rgba(232,213,183,0.6)",
-            border: `1px solid ${copied ? "rgba(74,222,128,0.3)" : "rgba(200,162,96,0.2)"}`,
+            background: copied ? "rgba(74,222,128,0.15)" : "var(--c-surface-2)",
+            color: copied ? "#86efac" : "var(--c-text-muted)",
+            border: `1px solid ${copied ? "rgba(74,222,128,0.3)" : "var(--c-border)"}`,
           }}
         >
           {copied ? "Copied!" : "Copy"}
@@ -122,9 +125,9 @@ function WaitingScreen({
         <div
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full"
           style={{
-            background: "rgba(240,217,181,0.05)",
-            border: "1px solid rgba(200,162,96,0.15)",
-            color: "rgba(232,213,183,0.5)",
+            background: "var(--c-surface-2)",
+            border: "1px solid var(--c-border-faint)",
+            color: "var(--c-text-muted)",
           }}
         >
           <span>⏱</span>
@@ -138,12 +141,25 @@ function WaitingScreen({
             key={i}
             className="w-1.5 h-1.5 rounded-full"
             style={{
-              background: "rgba(232,213,183,0.35)",
+              background: "var(--c-text-faint)",
               animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
             }}
           />
         ))}
       </div>
+
+      <button
+        onClick={onCancel}
+        className="text-xs px-4 py-2 rounded-xl transition-all"
+        style={{
+          background: "var(--c-surface-2)",
+          border: "1px solid var(--c-border)",
+          color: "var(--c-text-muted)",
+          cursor: "pointer",
+        }}
+      >
+        Cancel
+      </button>
 
       <style>{`
         @keyframes pulse {
@@ -159,6 +175,7 @@ function WaitingScreen({
 function MainContent() {
   const { user, logout } = useAuth();
   const { justRegistered, setJustRegistered } = useAuthStore();
+  const queryClient = useQueryClient();
   const currentUsername = user?.username ?? "Guest";
   const {
     gameState,
@@ -170,6 +187,7 @@ function MainContent() {
     makeMove,
     sendChat,
     resign,
+    leaveRoom,
     offerDraw,
     respondDraw,
   } = useSocket(currentUsername);
@@ -195,7 +213,13 @@ function MainContent() {
 
   function handleChangeTheme(t: BoardTheme) {
     changeTheme(t);
-    if (user) apiUpdateSettings({ theme: t.id }).catch(() => {});
+    if (user) {
+      // Update query cache so the useEffect([user?.id]) sync uses the new theme on next mount.
+      queryClient.setQueryData<typeof user>(["me"], (prev) =>
+        prev ? { ...prev, theme: t.id } : prev
+      );
+      apiUpdateSettings({ theme: t.id }).catch(() => {});
+    }
   }
 
   // ── No game — show lobby/dashboard ──────────────────────────────────────────
@@ -227,7 +251,13 @@ function MainContent() {
   }
 
   if (gameState.status === "waiting") {
-    return <WaitingScreen roomId={gameState.roomId} timeControl={gameState.timeControl} />;
+    return (
+      <WaitingScreen
+        roomId={gameState.roomId}
+        timeControl={gameState.timeControl}
+        onCancel={() => leaveRoom(gameState.roomId)}
+      />
+    );
   }
 
   // ── Game view ────────────────────────────────────────────────────────────────
@@ -246,13 +276,13 @@ function MainContent() {
       <header style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         height: "44px", padding: "0 16px", flexShrink: 0,
-        borderBottom: "1px solid rgba(200,162,96,0.1)",
-        background: "rgba(15,10,6,0.4)",
+        borderBottom: "1px solid var(--c-border-faint)",
+        background: "var(--c-surface)",
       }}>
         {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>♟</span>
-          <span style={{ fontSize: "0.875rem", fontWeight: 700, letterSpacing: "-0.01em", color: "#e8d5b7" }}>
+          <span style={{ fontSize: "0.875rem", fontWeight: 700, letterSpacing: "-0.01em", color: "var(--c-text)" }}>
             Custom Chess
           </span>
         </div>
@@ -260,8 +290,8 @@ function MainContent() {
         {/* Room ID */}
         <span style={{
           fontFamily: "monospace", fontSize: "0.78rem", fontWeight: 600,
-          letterSpacing: "0.1em", color: "rgba(200,162,96,0.6)",
-          background: "rgba(200,162,96,0.07)", border: "1px solid rgba(200,162,96,0.16)",
+          letterSpacing: "0.1em", color: "var(--c-accent)",
+          background: "var(--c-accent-dim)", border: "1px solid var(--c-border)",
           borderRadius: "6px", padding: "3px 12px",
         }}>
           {gameState.roomId}
@@ -275,13 +305,13 @@ function MainContent() {
             <>
               <button
                 onClick={() => navigate(`/profile/${user.username}`)}
-                style={{ background: "rgba(240,217,181,0.07)", border: "1px solid rgba(200,162,96,0.18)", borderRadius: "8px", color: "rgba(232,213,183,0.75)", fontSize: "0.72rem", fontWeight: 600, padding: "4px 10px", cursor: "pointer" }}
+                style={{ background: "var(--c-surface-2)", border: "1px solid var(--c-border)", borderRadius: "8px", color: "var(--c-text-muted)", fontSize: "0.72rem", fontWeight: 600, padding: "4px 10px", cursor: "pointer" }}
               >
                 {user.username}{user.elo != null ? ` · ${user.elo}` : ""}
               </button>
               <button
                 onClick={() => logout()}
-                style={{ background: "none", border: "1px solid rgba(200,162,96,0.12)", borderRadius: "8px", color: "rgba(232,213,183,0.38)", fontSize: "0.72rem", padding: "4px 8px", cursor: "pointer" }}
+                style={{ background: "none", border: "1px solid var(--c-border-faint)", borderRadius: "8px", color: "var(--c-text-faint)", fontSize: "0.72rem", padding: "4px 8px", cursor: "pointer" }}
               >
                 Sign out
               </button>
@@ -289,7 +319,7 @@ function MainContent() {
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
-              style={{ background: "rgba(200,162,96,0.1)", border: "1px solid rgba(200,162,96,0.25)", borderRadius: "8px", color: "#e8d5b7", fontSize: "0.72rem", fontWeight: 600, padding: "4px 10px", cursor: "pointer" }}
+              style={{ background: "var(--c-accent-dim)", border: "1px solid var(--c-border)", borderRadius: "8px", color: "var(--c-text)", fontSize: "0.72rem", fontWeight: 600, padding: "4px 10px", cursor: "pointer" }}
             >
               Sign in
             </button>

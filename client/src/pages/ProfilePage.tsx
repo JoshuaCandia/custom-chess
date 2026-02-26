@@ -8,8 +8,8 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
   return (
     <div
       style={{
-        background: "rgba(240,217,181,0.04)",
-        border: "1px solid rgba(200,162,96,0.14)",
+        background: "var(--c-surface-2)",
+        border: "1px solid var(--c-border-faint)",
         borderRadius: "14px",
         padding: "18px 16px",
         display: "flex",
@@ -19,14 +19,14 @@ function StatCard({ label, value, sub }: { label: string; value: string | number
         minWidth: "80px",
       }}
     >
-      <span style={{ fontSize: "1.75rem", fontWeight: 800, color: "#e8d5b7", lineHeight: 1 }}>
+      <span style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--c-text)", lineHeight: 1 }}>
         {value}
       </span>
-      <span style={{ fontSize: "0.7rem", color: "rgba(232,213,183,0.45)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+      <span style={{ fontSize: "0.7rem", color: "var(--c-text-muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
         {label}
       </span>
       {sub && (
-        <span style={{ fontSize: "0.7rem", color: "rgba(200,162,96,0.5)" }}>{sub}</span>
+        <span style={{ fontSize: "0.7rem", color: "var(--c-accent)" }}>{sub}</span>
       )}
     </div>
   );
@@ -42,25 +42,24 @@ function ColorBar({ label, wins, losses, draws, played }: {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "rgba(232,213,183,0.7)" }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--c-text-muted)" }}>
           {label}
         </span>
-        <span style={{ fontSize: "0.75rem", color: "rgba(232,213,183,0.35)" }}>
+        <span style={{ fontSize: "0.75rem", color: "var(--c-text-faint)" }}>
           {played} games
         </span>
       </div>
 
-      {/* Progress bar */}
-      <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", background: "rgba(240,217,181,0.06)", display: "flex" }}>
-        <div style={{ width: `${winPct}%`, background: "#4ade80", transition: "width 0.6s ease" }} />
-        <div style={{ width: `${drawPct}%`, background: "rgba(200,162,96,0.5)", transition: "width 0.6s ease" }} />
-        <div style={{ width: `${lossPct}%`, background: "rgba(239,68,68,0.6)", transition: "width 0.6s ease" }} />
+      <div style={{ height: "6px", borderRadius: "3px", overflow: "hidden", background: "var(--c-surface-2)", display: "flex" }}>
+        <div style={{ width: `${winPct}%`, background: "var(--c-win)", transition: "width 0.6s ease" }} />
+        <div style={{ width: `${drawPct}%`, background: "var(--c-draw)", transition: "width 0.6s ease" }} />
+        <div style={{ width: `${lossPct}%`, background: "var(--c-loss)", transition: "width 0.6s ease" }} />
       </div>
 
       <div style={{ display: "flex", gap: "16px" }}>
-        <span style={{ fontSize: "0.75rem", color: "#4ade80" }}>{wins}W</span>
-        <span style={{ fontSize: "0.75rem", color: "rgba(200,162,96,0.7)" }}>{draws}D</span>
-        <span style={{ fontSize: "0.75rem", color: "rgba(239,68,68,0.7)" }}>{losses}L</span>
+        <span style={{ fontSize: "0.75rem", color: "var(--c-win)" }}>{wins}W</span>
+        <span style={{ fontSize: "0.75rem", color: "var(--c-draw)" }}>{draws}D</span>
+        <span style={{ fontSize: "0.75rem", color: "var(--c-loss)" }}>{losses}L</span>
       </div>
     </div>
   );
@@ -72,7 +71,7 @@ function RecentGameRow({ game }: { game: GameRecord }) {
     (game.color === "black" && game.result === "black");
   const isDraw = game.result === "draw";
 
-  const resultColor = isWin ? "#4ade80" : isDraw ? "rgba(200,162,96,0.7)" : "rgba(239,68,68,0.7)";
+  const resultColor = isWin ? "var(--c-win)" : isDraw ? "var(--c-draw)" : "var(--c-loss)";
   const resultLabel = isWin ? "Win" : isDraw ? "Draw" : "Loss";
   const pieceIcon = game.color === "white" ? "♔" : "♚";
 
@@ -81,6 +80,8 @@ function RecentGameRow({ game }: { game: GameRecord }) {
     timeout: "Timeout",
     stalemate: "Stalemate",
     draw: "Draw",
+    resign: "Resign",
+    agreement: "Agreement",
   };
 
   const timeAgo = (() => {
@@ -100,23 +101,23 @@ function RecentGameRow({ game }: { game: GameRecord }) {
         gap: "12px",
         padding: "10px 14px",
         borderRadius: "10px",
-        background: "rgba(240,217,181,0.03)",
-        border: "1px solid rgba(200,162,96,0.08)",
+        background: "var(--c-surface-2)",
+        border: "1px solid var(--c-border-faint)",
       }}
     >
-      <span style={{ fontSize: "1.1rem", color: game.color === "white" ? "rgba(200,162,96,0.9)" : "rgba(232,213,183,0.6)" }}>
+      <span style={{ fontSize: "1.1rem", color: game.color === "white" ? "var(--c-accent)" : "var(--c-text-muted)" }}>
         {pieceIcon}
       </span>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px" }}>
-        <span style={{ fontSize: "0.8rem", color: "#e8d5b7" }}>vs {game.opponent}</span>
-        <span style={{ fontSize: "0.7rem", color: "rgba(232,213,183,0.35)" }}>
+        <span style={{ fontSize: "0.8rem", color: "var(--c-text)" }}>vs {game.opponent}</span>
+        <span style={{ fontSize: "0.7rem", color: "var(--c-text-faint)" }}>
           {reasonLabel[game.reason] ?? game.reason}
           {game.timeControl ? ` · ${game.timeControl / 60}min` : ""}
           {" · "}{game.moveCount} moves
         </span>
       </div>
       <span style={{ fontSize: "0.8rem", fontWeight: 700, color: resultColor }}>{resultLabel}</span>
-      <span style={{ fontSize: "0.7rem", color: "rgba(232,213,183,0.28)", minWidth: "48px", textAlign: "right" }}>{timeAgo}</span>
+      <span style={{ fontSize: "0.7rem", color: "var(--c-text-faint)", minWidth: "48px", textAlign: "right" }}>{timeAgo}</span>
     </div>
   );
 }
@@ -158,10 +159,10 @@ export function ProfilePage() {
           onClick={() => navigate(-1)}
           style={{
             background: "none",
-            border: "1px solid rgba(200,162,96,0.18)",
+            border: "1px solid var(--c-border)",
             borderRadius: "8px",
             padding: "6px 12px",
-            color: "rgba(232,213,183,0.55)",
+            color: "var(--c-text-muted)",
             fontSize: "0.8rem",
             cursor: "pointer",
             display: "flex",
@@ -169,14 +170,14 @@ export function ProfilePage() {
             gap: "6px",
             transition: "all 0.15s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(200,162,96,0.4)"; e.currentTarget.style.color = "#e8d5b7"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(200,162,96,0.18)"; e.currentTarget.style.color = "rgba(232,213,183,0.55)"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--c-accent)"; e.currentTarget.style.color = "var(--c-text)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--c-border)"; e.currentTarget.style.color = "var(--c-text-muted)"; }}
         >
           ← Back
         </button>
         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <span style={{ fontSize: "1rem" }}>♟</span>
-          <span style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "rgba(200,162,96,0.55)" }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "var(--c-accent)" }}>
             Custom Chess
           </span>
         </div>
@@ -186,7 +187,7 @@ export function ProfilePage() {
         <div style={{ display: "flex", justifyContent: "center", paddingTop: "80px" }}>
           <div style={{ display: "flex", gap: "6px" }}>
             {[0, 1, 2].map((i) => (
-              <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "rgba(200,162,96,0.4)", animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }} />
+              <div key={i} style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--c-accent)", animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite` }} />
             ))}
           </div>
           <style>{`@keyframes pulse { 0%,80%,100%{opacity:.25;transform:scale(.85)} 40%{opacity:1;transform:scale(1)} }`}</style>
@@ -194,7 +195,7 @@ export function ProfilePage() {
       )}
 
       {error && (
-        <div style={{ textAlign: "center", paddingTop: "80px", color: "rgba(232,213,183,0.4)" }}>
+        <div style={{ textAlign: "center", paddingTop: "80px", color: "var(--c-text-muted)" }}>
           <div style={{ fontSize: "2rem", marginBottom: "12px" }}>♟</div>
           <p style={{ margin: 0 }}>User not found</p>
         </div>
@@ -214,24 +215,24 @@ export function ProfilePage() {
                 width: "64px",
                 height: "64px",
                 borderRadius: "50%",
-                background: "rgba(200,162,96,0.12)",
-                border: "2px solid rgba(200,162,96,0.25)",
+                background: "var(--c-accent-dim)",
+                border: "2px solid var(--c-border)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "1.4rem",
                 fontWeight: 800,
-                color: "#c8a56a",
+                color: "var(--c-accent)",
                 flexShrink: 0,
               }}
             >
               {initials}
             </div>
             <div>
-              <h1 style={{ margin: "0 0 4px", fontSize: "1.5rem", fontWeight: 800, color: "#e8d5b7", letterSpacing: "-0.02em" }}>
+              <h1 style={{ margin: "0 0 4px", fontSize: "1.5rem", fontWeight: 800, color: "var(--c-text)", letterSpacing: "-0.02em" }}>
                 {profile.username}
               </h1>
-              <p style={{ margin: 0, fontSize: "0.78rem", color: "rgba(232,213,183,0.35)" }}>
+              <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--c-text-faint)" }}>
                 Member since {joinedDate}
               </p>
             </div>
@@ -250,8 +251,8 @@ export function ProfilePage() {
           {profile.stats.total > 0 && (
             <div
               style={{
-                background: "rgba(240,217,181,0.03)",
-                border: "1px solid rgba(200,162,96,0.1)",
+                background: "var(--c-surface-2)",
+                border: "1px solid var(--c-border-faint)",
                 borderRadius: "14px",
                 padding: "20px",
                 display: "flex",
@@ -259,7 +260,7 @@ export function ProfilePage() {
                 gap: "16px",
               }}
             >
-              <h3 style={{ margin: 0, fontSize: "0.8rem", fontWeight: 700, color: "rgba(232,213,183,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h3 style={{ margin: 0, fontSize: "0.8rem", fontWeight: 700, color: "var(--c-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Performance by Color
               </h3>
               <ColorBar label="As White ♔" {...profile.stats.asWhite} />
@@ -270,7 +271,7 @@ export function ProfilePage() {
           {/* Recent games */}
           {profile.stats.recentGames.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <h3 style={{ margin: 0, fontSize: "0.8rem", fontWeight: 700, color: "rgba(232,213,183,0.5)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
+              <h3 style={{ margin: 0, fontSize: "0.8rem", fontWeight: 700, color: "var(--c-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
                 Recent Games
               </h3>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -282,7 +283,7 @@ export function ProfilePage() {
           )}
 
           {profile.stats.total === 0 && (
-            <div style={{ textAlign: "center", padding: "32px 0", color: "rgba(232,213,183,0.3)" }}>
+            <div style={{ textAlign: "center", padding: "32px 0", color: "var(--c-text-faint)" }}>
               <div style={{ fontSize: "2rem", marginBottom: "8px" }}>♟</div>
               <p style={{ margin: 0, fontSize: "0.85rem" }}>No games played yet</p>
             </div>

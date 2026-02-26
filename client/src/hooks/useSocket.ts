@@ -8,6 +8,7 @@ import type {
   Color,
   TimeControl,
 } from "../types/chess";
+import { useGameSounds } from "./useGameSounds";
 
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -16,6 +17,9 @@ export function useSocket(currentUsername: string) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { play } = useGameSounds();
+  // Tracks my assigned color so we can distinguish my moves from opponent moves
+  const playerColorRef = useRef<Color | null>(null);
 
   function showError(reason: string) {
     setError(reason);
@@ -75,6 +79,8 @@ export function useSocket(currentUsername: string) {
         myUsername: string;
         opponentUsername: string;
       }) => {
+        playerColorRef.current = color;
+        play("notify");
         setGameState({
           roomId,
           playerColor: color,
@@ -101,6 +107,14 @@ export function useSocket(currentUsername: string) {
     );
 
     socket.on("move-made", (payload: MoveMadePayload) => {
+      // payload.turn is who moves NEXT after this move.
+      // If it's now my turn → opponent just moved → play sound here.
+      // If it's opponent's turn → I just moved → sound already played in makeMove().
+      const isOpponentMove = payload.turn === playerColorRef.current;
+      if (isOpponentMove) {
+        play(payload.move.san.includes("x") ? "capture" : "move");
+      }
+
       setGameState((prev) => {
         if (!prev) return prev;
         return {
@@ -125,11 +139,12 @@ export function useSocket(currentUsername: string) {
     });
 
     socket.on("chat-message", (msg: ChatMessage) => {
+      play("notify");
       setChatMessages((prev) => [...prev, msg]);
     });
 
-    socket.on("invalid-move", ({ reason }: { reason: string }) => {
-      showError(reason);
+    socket.on("invalid-move", () => {
+      // Board is driven by server FEN — the piece just snaps back, no toast needed.
     });
 
     socket.on("join-error", ({ reason }: { reason: string }) => {
@@ -173,6 +188,7 @@ export function useSocket(currentUsername: string) {
     });
 
     socket.on("opponent-reconnected", () => {
+      play("notify");
       setGameState((prev) => {
         if (!prev) return prev;
         return { ...prev, opponentOffline: false };
@@ -195,6 +211,7 @@ export function useSocket(currentUsername: string) {
     );
 
     socket.on("draw-offered", () => {
+      play("notify");
       setGameState((prev) => {
         if (!prev) return prev;
         return { ...prev, drawOfferPending: true };
@@ -249,6 +266,7 @@ export function useSocket(currentUsername: string) {
         myUsername: string;
         opponentUsername: string;
       }) => {
+        playerColorRef.current = color;
         setGameState({
           roomId,
           playerColor: color,
@@ -288,6 +306,9 @@ export function useSocket(currentUsername: string) {
   }
 
   function makeMove(roomId: string, move: MoveInput) {
+    // Play sound immediately for my own moves (instant feedback, before server round-trip).
+    // move-made handler will skip sound when it arrives since it detects it's not an opponent move.
+    play("move");
     socketRef.current?.emit("make-move", { roomId, move });
   }
 
@@ -297,6 +318,11 @@ export function useSocket(currentUsername: string) {
 
   function resign(roomId: string) {
     socketRef.current?.emit("resign", { roomId });
+  }
+
+  function leaveRoom(roomId: string) {
+    socketRef.current?.emit("leave-room", { roomId });
+    setGameState(null);
   }
 
   function offerDraw(roomId: string) {
@@ -325,6 +351,7 @@ export function useSocket(currentUsername: string) {
     makeMove,
     sendChat,
     resign,
+    leaveRoom,
     offerDraw,
     respondDraw,
   };

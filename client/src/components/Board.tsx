@@ -130,6 +130,8 @@ export function Board({ gameState, onMove, theme }: BoardProps) {
   const [preMove, setPreMove] = useState<MoveInput | null>(null);
 
   const prevTurnRef = useRef(turn);
+  // Records isMyTurn at the moment a drag starts so mid-drag turn changes don't mis-classify the drop.
+  const dragStartIsMyTurnRef = useRef(false);
 
   // Execute pre-move when it becomes my turn
   useEffect(() => {
@@ -173,10 +175,10 @@ export function Board({ gameState, onMove, theme }: BoardProps) {
       to: targetSquare,
       promotion: promo ? "q" : undefined,
     };
-    if (isMyTurn) {
+    if (dragStartIsMyTurnRef.current) {
       onMove(move);
     } else if (status === "playing") {
-      // Drag when not my turn → register as pre-move only if geometrically valid
+      // Drag started on opponent's turn → register as pre-move only if geometrically valid
       const geom = getPreMoveDestinations(fen, sourceSquare, playerColor);
       if (geom.includes(targetSquare)) {
         setPreMove(move);
@@ -293,7 +295,11 @@ export function Board({ gameState, onMove, theme }: BoardProps) {
             position: fen,
             boardOrientation: playerColor === "w" ? "white" : "black",
             allowDragging: status === "playing",
-            canDragPiece: ({ piece }) => piece.pieceType[0] === playerColor,
+            canDragPiece: ({ piece }) => {
+              const canDrag = piece.pieceType[0] === playerColor;
+              if (canDrag) dragStartIsMyTurnRef.current = isMyTurn;
+              return canDrag;
+            },
             onPieceDrop,
             // onPieceClick ensures selection works even if onSquareClick
             // doesn't fire when clicking directly on a piece
