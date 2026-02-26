@@ -1,11 +1,47 @@
 @import "tailwindcss";
 
+/* ── Color mode tokens ──────────────────────────────────────────────────── */
+:root {
+  --c-bg:           #1c1512;
+  --c-surface:      #231b10;
+  --c-surface-2:    rgba(240,217,181,0.05);
+  --c-text:         #e8d5b7;
+  --c-text-muted:   rgba(232,213,183,0.52);
+  --c-text-faint:   rgba(232,213,183,0.28);
+  --c-accent:       #c8a56a;
+  --c-accent-hover: #d4b47a;
+  --c-accent-dim:   rgba(200,162,96,0.12);
+  --c-border:       rgba(200,162,96,0.18);
+  --c-border-faint: rgba(200,162,96,0.1);
+  --c-win:          #4ade80;
+  --c-loss:         rgba(239,68,68,0.75);
+  --c-draw:         rgba(200,162,96,0.7);
+}
+
+html.light {
+  --c-bg:           #e8dfd3;
+  --c-surface:      #f7f2ea;
+  --c-surface-2:    rgba(0,0,0,0.06);
+  --c-text:         #19100a;
+  --c-text-muted:   rgba(25,16,10,0.65);
+  --c-text-faint:   rgba(25,16,10,0.42);
+  --c-accent:       #86551a;
+  --c-accent-hover: #9d6520;
+  --c-accent-dim:   rgba(134,85,26,0.15);
+  --c-border:       rgba(134,85,26,0.35);
+  --c-border-faint: rgba(134,85,26,0.2);
+  --c-win:          #166534;
+  --c-loss:         #b91c1c;
+  --c-draw:         rgba(106,68,10,0.85);
+}
+
 @layer base {
   body {
     font-family: "Inter", system-ui, sans-serif;
-    background-color: #1c1512;
-    color: #e8d5b7;
+    background-color: var(--c-bg);
+    color: var(--c-text);
     min-height: 100svh;
     margin: 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }

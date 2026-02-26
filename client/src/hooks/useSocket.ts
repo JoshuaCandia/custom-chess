@@ -47,6 +47,9 @@ export function useSocket(currentUsername: string) {
           moveHistory: [],
           myUsername: currentUsername,
           opponentUsername: "Guest",
+          drawOfferPending: false,
+          drawOfferSent: false,
+          opponentOffline: false,
         });
       }
     );
@@ -90,6 +93,9 @@ export function useSocket(currentUsername: string) {
           moveHistory: [],
           myUsername,
           opponentUsername,
+          drawOfferPending: false,
+          drawOfferSent: false,
+          opponentOffline: false,
         });
       }
     );
@@ -154,7 +160,116 @@ export function useSocket(currentUsername: string) {
       ({ message }: { color: Color; message: string }) => {
         setGameState((prev) => {
           if (!prev) return prev;
-          return { ...prev, status: "finished", message };
+          return { ...prev, status: "finished", message, opponentOffline: false };
+        });
+      }
+    );
+
+    socket.on("opponent-offline", () => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return { ...prev, opponentOffline: true };
+      });
+    });
+
+    socket.on("opponent-reconnected", () => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return { ...prev, opponentOffline: false };
+      });
+    });
+
+    socket.on(
+      "resigned",
+      ({ loser }: { loser: Color; winner: Color }) => {
+        setGameState((prev) => {
+          if (!prev) return prev;
+          const iLost = prev.playerColor === loser;
+          return {
+            ...prev,
+            status: "finished",
+            message: iLost ? "You resigned." : "Opponent resigned — you win!",
+          };
+        });
+      }
+    );
+
+    socket.on("draw-offered", () => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return { ...prev, drawOfferPending: true };
+      });
+    });
+
+    socket.on("draw-accepted", () => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          status: "finished",
+          drawOfferPending: false,
+          drawOfferSent: false,
+          message: "Draw agreed.",
+        };
+      });
+    });
+
+    socket.on("draw-declined", () => {
+      setGameState((prev) => {
+        if (!prev) return prev;
+        return { ...prev, drawOfferSent: false };
+      });
+      showError("Draw offer declined.");
+    });
+
+    socket.on(
+      "game-reconnect",
+      ({
+        roomId,
+        color,
+        fen,
+        turn,
+        isCheck,
+        timeControl,
+        timeWhite,
+        timeBlack,
+        moveHistory,
+        myUsername,
+        opponentUsername,
+      }: {
+        roomId: string;
+        color: Color;
+        fen: string;
+        turn: Color;
+        isCheck: boolean;
+        timeControl: TimeControl;
+        timeWhite: number;
+        timeBlack: number;
+        moveHistory: string[];
+        myUsername: string;
+        opponentUsername: string;
+      }) => {
+        setGameState({
+          roomId,
+          playerColor: color,
+          fen,
+          turn,
+          status: "playing",
+          isCheck,
+          isCheckmate: false,
+          isStalemate: false,
+          isDraw: false,
+          message: null,
+          lastMove: null,
+          timeControl,
+          timeWhite,
+          timeBlack,
+          moveHistory,
+          myUsername,
+          opponentUsername,
+          drawOfferPending: false,
+          drawOfferSent: false,
+          opponentOffline: false,
         });
       }
     );
@@ -180,5 +295,37 @@ export function useSocket(currentUsername: string) {
     socketRef.current?.emit("chat-message", { roomId, text });
   }
 
-  return { gameState, chatMessages, error, socketRef, createRoom, joinRoom, makeMove, sendChat };
+  function resign(roomId: string) {
+    socketRef.current?.emit("resign", { roomId });
+  }
+
+  function offerDraw(roomId: string) {
+    setGameState((prev) => {
+      if (!prev) return prev;
+      return { ...prev, drawOfferSent: true };
+    });
+    socketRef.current?.emit("draw-offer", { roomId });
+  }
+
+  function respondDraw(roomId: string, accept: boolean) {
+    setGameState((prev) => {
+      if (!prev) return prev;
+      return { ...prev, drawOfferPending: false };
+    });
+    socketRef.current?.emit("draw-response", { roomId, accept });
+  }
+
+  return {
+    gameState,
+    chatMessages,
+    error,
+    socketRef,
+    createRoom,
+    joinRoom,
+    makeMove,
+    sendChat,
+    resign,
+    offerDraw,
+    respondDraw,
+  };
 }

@@ -49,27 +49,9 @@ export function MoveList({ moves, height }: MoveListProps) {
 
   return (
     <div
-      className="flex flex-col shrink-0"
-      style={{
-        width: "132px",
-        height,
-        background: "rgba(240,217,181,0.04)",
-        border: "1px solid rgba(200,162,96,0.18)",
-        borderRadius: "8px",
-        overflow: "hidden",
-      }}
+      className="flex flex-col"
+      style={{ width: "100%", height, overflow: "hidden" }}
     >
-      {/* Header */}
-      <div
-        className="shrink-0 px-3 py-2 text-xs font-medium uppercase tracking-widest"
-        style={{
-          color: "rgba(232,213,183,0.45)",
-          borderBottom: "1px solid rgba(200,162,96,0.12)",
-        }}
-      >
-        Moves
-      </div>
-
       {/* Scrollable list */}
       <div className="flex-1 overflow-y-auto py-1">
         {pairs.length === 0 ? (

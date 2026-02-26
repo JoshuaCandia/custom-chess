@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Routes, Route, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useAuthStore } from "./store/authStore";
 import { useSocket } from "./hooks/useSocket";
 import { useAuth } from "./hooks/useAuth";
 import { useTheme } from "./hooks/useTheme";
 import { useVoiceChat } from "./hooks/useVoiceChat";
-import { LandingPage } from "./components/LandingPage";
 import { Lobby } from "./components/Lobby";
 import { Board } from "./components/Board";
 import { GameStatus } from "./components/GameStatus";
@@ -13,11 +13,57 @@ import { PlayerRow } from "./components/PlayerRow";
 import { SidePanel } from "./components/SidePanel";
 import { ThemePicker } from "./components/ThemePicker";
 import { VoiceButton } from "./components/VoiceButton";
+import { GameControls } from "./components/GameControls";
 import { GameOverModal } from "./components/GameOverModal";
 import { AuthModal } from "./components/AuthModal";
 import { WelcomeModal } from "./components/WelcomeModal";
+import { ProfilePage } from "./pages/ProfilePage";
+import { LoginPage } from "./pages/LoginPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { apiUpdateSettings } from "./lib/userApi";
+import { BOARD_THEMES, type BoardTheme } from "./types/theme";
 
-// ── Waiting screen ────────────────────────────────────────────────────────────
+// ── Loading screen ─────────────────────────────────────────────────────────────
+function LoadingScreen() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100svh",
+        background: "var(--c-bg)",
+      }}
+    >
+      <div style={{ display: "flex", gap: "6px" }}>
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            style={{
+              width: "7px",
+              height: "7px",
+              borderRadius: "50%",
+              background: "var(--c-accent)",
+              animation: `dot 1.4s ease-in-out ${i * 0.2}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+      <style>{`@keyframes dot { 0%,80%,100%{opacity:.25;transform:scale(.85)} 40%{opacity:1;transform:scale(1)} }`}</style>
+    </div>
+  );
+}
+
+// ── Protected layout — guards all routes that require auth/guest ───────────────
+function ProtectedLayout() {
+  const { user, loading, guestMode } = useAuth();
+
+  if (loading) return <LoadingScreen />;
+  if (!user && !guestMode) return <Navigate to="/login" replace />;
+  return <Outlet />;
+}
+
+// ── Waiting screen ─────────────────────────────────────────────────────────────
 function WaitingScreen({
   roomId,
   timeControl,
@@ -51,7 +97,6 @@ function WaitingScreen({
         </p>
       </div>
 
-      {/* Room code */}
       <div
         className="flex items-center gap-3 px-5 py-3 rounded-2xl"
         style={{
@@ -87,7 +132,6 @@ function WaitingScreen({
         </div>
       )}
 
-      {/* Animated dots */}
       <div className="flex gap-1.5">
         {[0, 1, 2].map((i) => (
           <div
@@ -111,14 +155,28 @@ function WaitingScreen({
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
-export default function App() {
-  const { user, loading, logout } = useAuth();
-  const { guestMode, setGuestMode, justRegistered, setJustRegistered } = useAuthStore();
+// ── Main game content ──────────────────────────────────────────────────────────
+function MainContent() {
+  const { user, logout } = useAuth();
+  const { justRegistered, setJustRegistered } = useAuthStore();
   const currentUsername = user?.username ?? "Guest";
-  const { gameState, chatMessages, error, socketRef, createRoom, joinRoom, makeMove, sendChat } = useSocket(currentUsername);
+  const {
+    gameState,
+    chatMessages,
+    error,
+    socketRef,
+    createRoom,
+    joinRoom,
+    makeMove,
+    sendChat,
+    resign,
+    offerDraw,
+    respondDraw,
+  } = useSocket(currentUsername);
   const { theme, changeTheme } = useTheme();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const navigate = useNavigate();
+
   const { voiceStatus, isMuted, startVoiceChat, toggleMute, stopVoiceChat } = useVoiceChat(
     socketRef,
     gameState?.roomId ?? null,
@@ -126,16 +184,21 @@ export default function App() {
     gameState?.status ?? "idle"
   );
 
-  const isIdentified = loading ? false : (user !== null || guestMode);
+  // Sync theme from server when user logs in
+  useEffect(() => {
+    if (user?.theme) {
+      const serverTheme = BOARD_THEMES.find((t) => t.id === user.theme);
+      if (serverTheme) changeTheme(serverTheme);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
-  if (!isIdentified) {
-    return (
-      <AnimatePresence mode="wait">
-        <LandingPage key="landing" onGuest={() => setGuestMode(true)} />
-      </AnimatePresence>
-    );
+  function handleChangeTheme(t: BoardTheme) {
+    changeTheme(t);
+    if (user) apiUpdateSettings({ theme: t.id }).catch(() => {});
   }
 
+  // ── No game — show lobby/dashboard ──────────────────────────────────────────
   if (!gameState) {
     return (
       <AnimatePresence mode="wait">
@@ -145,172 +208,184 @@ export default function App() {
           onJoinRoom={joinRoom}
           error={error}
           onSignIn={user ? undefined : () => setShowAuthModal(true)}
+          user={user}
+          onViewProfile={() => navigate(`/profile/${user!.username}`)}
+          onLogout={logout}
         />
         {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+        <AnimatePresence>
+          {justRegistered && (
+            <WelcomeModal
+              key="welcome"
+              username={justRegistered}
+              onClose={() => setJustRegistered(null)}
+            />
+          )}
+        </AnimatePresence>
       </AnimatePresence>
     );
   }
 
   if (gameState.status === "waiting") {
-    return (
-      <WaitingScreen roomId={gameState.roomId} timeControl={gameState.timeControl} />
-    );
+    return <WaitingScreen roomId={gameState.roomId} timeControl={gameState.timeControl} />;
   }
 
-  // ── Game view ───────────────────────────────────────────────────────────────
+  // ── Game view ────────────────────────────────────────────────────────────────
   const opponentColor = gameState.playerColor === "w" ? "b" : "w";
   const showClocks = gameState.timeControl !== null;
-
-  const myTime =
-    gameState.playerColor === "w" ? gameState.timeWhite : gameState.timeBlack;
-  const opponentTime =
-    opponentColor === "w" ? gameState.timeWhite : gameState.timeBlack;
-
-  const myClockActive =
-    gameState.turn === gameState.playerColor && gameState.status === "playing";
-  const opponentClockActive =
-    gameState.turn === opponentColor && gameState.status === "playing";
-
-  // Board fills remaining height after fixed UI rows.
-  // SidePanel is 160px wide + 8px gap + 16px padding = 184px horizontal.
-  // header(32) + playerRow×2(42×2) + status(28) + gaps(30) + padding(16) ≈ 190px vertical
-  const boardSize = "min(680px, min(calc(100vw - 184px), calc(100vh - 196px)))";
+  const myTime = gameState.playerColor === "w" ? gameState.timeWhite : gameState.timeBlack;
+  const opponentTime = opponentColor === "w" ? gameState.timeWhite : gameState.timeBlack;
+  const myClockActive = gameState.turn === gameState.playerColor && gameState.status === "playing";
+  const opponentClockActive = gameState.turn === opponentColor && gameState.status === "playing";
+  const boardSize = "min(680px, min(calc(100vw - 252px), calc(100vh - 60px)))";
 
   return (
-    <div
-      className="flex flex-col h-screen overflow-hidden"
-      style={{ padding: "8px", gap: "6px" }}
-    >
-      {/* Header */}
-      <header
-        className="flex items-center justify-between shrink-0 px-1"
-        style={{ height: "32px" }}
-      >
-        <div className="flex items-center gap-2">
+    <div style={{ display: "flex", flexDirection: "column", height: "100svh", overflow: "hidden" }}>
+
+      {/* ── Header ── */}
+      <header style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        height: "44px", padding: "0 16px", flexShrink: 0,
+        borderBottom: "1px solid rgba(200,162,96,0.1)",
+        background: "rgba(15,10,6,0.4)",
+      }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "1.1rem", lineHeight: 1 }}>♟</span>
-          <span className="text-sm font-semibold tracking-tight">Custom Chess</span>
+          <span style={{ fontSize: "0.875rem", fontWeight: 700, letterSpacing: "-0.01em", color: "#e8d5b7" }}>
+            Custom Chess
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemePicker current={theme} onChange={changeTheme} />
-          <VoiceButton
-            status={voiceStatus}
-            isMuted={isMuted}
-            onStart={startVoiceChat}
-            onToggleMute={toggleMute}
-            onStop={stopVoiceChat}
-          />
+
+        {/* Room ID */}
+        <span style={{
+          fontFamily: "monospace", fontSize: "0.78rem", fontWeight: 600,
+          letterSpacing: "0.1em", color: "rgba(200,162,96,0.6)",
+          background: "rgba(200,162,96,0.07)", border: "1px solid rgba(200,162,96,0.16)",
+          borderRadius: "6px", padding: "3px 12px",
+        }}>
+          {gameState.roomId}
+        </span>
+
+        {/* Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+          <ThemePicker current={theme} onChange={handleChangeTheme} />
+          <VoiceButton status={voiceStatus} isMuted={isMuted} onStart={startVoiceChat} onToggleMute={toggleMute} onStop={stopVoiceChat} />
           {user ? (
-            <button
-              onClick={() => logout()}
-              className="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
-              style={{
-                background: "rgba(240,217,181,0.08)",
-                border: "1px solid rgba(200,162,96,0.2)",
-                color: "rgba(232,213,183,0.7)",
-              }}
-            >
-              {user.username} · Sign out
-            </button>
+            <>
+              <button
+                onClick={() => navigate(`/profile/${user.username}`)}
+                style={{ background: "rgba(240,217,181,0.07)", border: "1px solid rgba(200,162,96,0.18)", borderRadius: "8px", color: "rgba(232,213,183,0.75)", fontSize: "0.72rem", fontWeight: 600, padding: "4px 10px", cursor: "pointer" }}
+              >
+                {user.username}{user.elo != null ? ` · ${user.elo}` : ""}
+              </button>
+              <button
+                onClick={() => logout()}
+                style={{ background: "none", border: "1px solid rgba(200,162,96,0.12)", borderRadius: "8px", color: "rgba(232,213,183,0.38)", fontSize: "0.72rem", padding: "4px 8px", cursor: "pointer" }}
+              >
+                Sign out
+              </button>
+            </>
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
-              className="text-xs px-2.5 py-1 rounded-lg transition-all font-medium"
-              style={{
-                background: "rgba(200,162,96,0.12)",
-                border: "1px solid rgba(200,162,96,0.3)",
-                color: "#e8d5b7",
-              }}
+              style={{ background: "rgba(200,162,96,0.1)", border: "1px solid rgba(200,162,96,0.25)", borderRadius: "8px", color: "#e8d5b7", fontSize: "0.72rem", fontWeight: 600, padding: "4px 10px", cursor: "pointer" }}
             >
               Sign in
             </button>
           )}
         </div>
-        <span
-          className="text-xs font-mono"
-          style={{ color: "rgba(232,213,183,0.3)" }}
-        >
-          {gameState.roomId}
-        </span>
       </header>
 
-      {/* Opponent */}
-      <PlayerRow
-        colorSide={opponentColor}
-        label="Opponent"
-        username={gameState.opponentUsername}
-        timeMs={opponentTime}
-        isActive={opponentClockActive}
-        showClock={showClocks}
-      />
+      {/* ── Body: board + right panel ── */}
+      <div style={{ flex: 1, minHeight: 0, display: "flex", gap: "8px", padding: "8px" }}>
 
-      {/* Board + Move list */}
-      <div className="flex-1 min-h-0 flex items-center justify-center gap-2">
-        <div style={{ width: boardSize }}>
-          <Board
+        {/* Board */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: boardSize }}>
+            <Board
+              gameState={gameState}
+              onMove={(move) => makeMove(gameState.roomId, move)}
+              theme={theme}
+            />
+          </div>
+        </div>
+
+        {/* Right panel */}
+        <div style={{ width: "220px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "6px", minHeight: 0 }}>
+          <PlayerRow
+            colorSide={opponentColor}
+            label="Opponent"
+            username={gameState.opponentUsername}
+            timeMs={opponentTime}
+            isActive={opponentClockActive}
+            showClock={showClocks}
+          />
+          <SidePanel
+            moves={gameState.moveHistory}
+            chatMessages={chatMessages}
+            playerColor={gameState.playerColor}
+            onSendChat={(text) => sendChat(gameState.roomId, text)}
+            disabled={gameState.status === "finished"}
+          />
+          <GameStatus gameState={gameState} />
+          <GameControls
             gameState={gameState}
-            onMove={(move) => makeMove(gameState.roomId, move)}
-            theme={theme}
+            onResign={() => resign(gameState.roomId)}
+            onOfferDraw={() => offerDraw(gameState.roomId)}
+            onRespondDraw={(accept) => respondDraw(gameState.roomId, accept)}
+          />
+          <PlayerRow
+            colorSide={gameState.playerColor}
+            label="You"
+            username={gameState.myUsername}
+            timeMs={myTime}
+            isActive={myClockActive}
+            showClock={showClocks}
           />
         </div>
-        <SidePanel
-          moves={gameState.moveHistory}
-          chatMessages={chatMessages}
-          playerColor={gameState.playerColor}
-          onSendChat={(text) => sendChat(gameState.roomId, text)}
-          height={boardSize}
-          disabled={gameState.status === "finished"}
-        />
       </div>
 
-      {/* Error toast — fixed, never shifts the layout */}
+      {/* Error toast */}
       {error && (
-        <div
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 text-xs font-medium px-4 py-2 rounded-xl pointer-events-none"
-          style={{
-            background: "rgba(239,68,68,0.92)",
-            backdropFilter: "blur(8px)",
-            color: "#fff",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-          }}
-        >
+        <div style={{
+          position: "fixed", top: "16px", left: "50%", transform: "translateX(-50%)",
+          zIndex: 50, fontSize: "0.75rem", fontWeight: 500, padding: "6px 16px",
+          borderRadius: "12px", pointerEvents: "none", background: "rgba(239,68,68,0.92)",
+          backdropFilter: "blur(8px)", color: "#fff", boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+        }}>
           {error}
         </div>
       )}
 
-      {/* Me */}
-      <PlayerRow
-        colorSide={gameState.playerColor}
-        label="You"
-        username={gameState.myUsername}
-        timeMs={myTime}
-        isActive={myClockActive}
-        showClock={showClocks}
-      />
-
-      {/* Status */}
-      <GameStatus gameState={gameState} />
-
-      {/* Game-over modal */}
       {gameState.status === "finished" && (
-        <GameOverModal
-          gameState={gameState}
-          onPlayAgain={() => window.location.reload()}
-        />
+        <GameOverModal gameState={gameState} onPlayAgain={() => window.location.reload()} />
       )}
 
-      {/* Auth modal */}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
 
-      {/* Welcome modal — shown after successful registration */}
       <AnimatePresence>
         {justRegistered && (
-          <WelcomeModal
-            key="welcome"
-            username={justRegistered}
-            onClose={() => setJustRegistered(null)}
-          />
+          <WelcomeModal key="welcome" username={justRegistered} onClose={() => setJustRegistered(null)} />
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── App root with routing ──────────────────────────────────────────────────────
+export default function App() {
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/profile/:username" element={<ProfilePage />} />
+
+      {/* Protected routes — require auth or guest mode */}
+      <Route element={<ProtectedLayout />}>
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/*" element={<MainContent />} />
+      </Route>
+    </Routes>
   );
 }

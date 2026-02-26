@@ -8,10 +8,30 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String   @id @default(uuid())
   username     String   @unique
   email        String?  @unique
   googleId     String?  @unique
   passwordHash String?
+  theme        String   @default("classic")
+  elo          Int      @default(1200)
   createdAt    DateTime @default(now())
+
+  gamesAsWhite Game[] @relation("WhitePlayer")
+  gamesAsBlack Game[] @relation("BlackPlayer")
+}
+
+model Game {
+  id          String   @id @default(uuid())
+  roomId      String
+  whiteId     String?
+  blackId     String?
+  result      String // "white" | "black" | "draw"
+  reason      String // "checkmate" | "timeout" | "stalemate" | "draw"
+  timeControl Int?
+  moveCount   Int      @default(0)
+  playedAt    DateTime @default(now())
+
+  white User? @relation("WhitePlayer", fields: [whiteId], references: [id])
+  black User? @relation("BlackPlayer", fields: [blackId], references: [id])
 }

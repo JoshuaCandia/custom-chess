@@ -1,8 +1,17 @@
 import type { GameState } from "../types/chess";
 
 export function GameStatus({ gameState }: { gameState: GameState }) {
-  const { playerColor, turn, isCheck, isCheckmate, isStalemate, isDraw, status, message } =
-    gameState;
+  const {
+    playerColor,
+    turn,
+    isCheck,
+    isCheckmate,
+    isStalemate,
+    isDraw,
+    status,
+    message,
+    opponentOffline,
+  } = gameState;
 
   const isMyTurn = turn === playerColor && status === "playing";
 
@@ -10,7 +19,10 @@ export function GameStatus({ gameState }: { gameState: GameState }) {
   let bg = "";
   let color = "";
 
-  if (message) {
+  if (opponentOffline) {
+    text = "Opponent offline — waiting 30s…";
+    bg = "rgba(250,204,21,0.08)"; color = "rgba(250,204,21,0.65)";
+  } else if (message) {
     text = message;
     bg = "rgba(200,162,96,0.15)"; color = "#c8a56a";
   } else if (isCheckmate) {

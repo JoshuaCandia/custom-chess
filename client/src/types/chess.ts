@@ -43,4 +43,7 @@ export interface GameState {
   moveHistory: string[]; // SAN strings in order
   myUsername: string;
   opponentUsername: string;
+  drawOfferPending: boolean;  // opponent offered draw to me
+  drawOfferSent: boolean;     // I offered draw, waiting for response
+  opponentOffline: boolean;   // opponent disconnected, grace period running
 }

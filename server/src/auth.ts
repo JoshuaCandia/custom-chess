@@ -1,13 +1,8 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "./generated/prisma/client";
+import { prisma } from "./db";
 import { sendOtpEmail } from "./email";
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL ?? "" });
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const prisma = new (PrismaClient as any)({ adapter }) as InstanceType<typeof PrismaClient>;
 const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET ?? "dev-secret";
@@ -227,7 +222,7 @@ router.get("/auth/me", async (req: Request, res: Response) => {
     return;
   }
 
-  res.json({ id: user.id, username: user.username, email: user.email });
+  res.json({ id: user.id, username: user.username, email: user.email, theme: user.theme, elo: user.elo });
 });
 
 // ── Google OAuth ──────────────────────────────────────────────────────────────

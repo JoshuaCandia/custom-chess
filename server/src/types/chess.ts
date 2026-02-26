@@ -21,6 +21,7 @@ export interface Room {
   timeBlack: number; // ms remaining
   lastMoveTimestamp: number;
   timerRef: NodeJS.Timeout | null;
+  reconnectTimers: Map<string, ReturnType<typeof setTimeout>>; // userId → timer
 }
 
 export interface MoveInput {

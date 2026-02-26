@@ -7,7 +7,6 @@ interface SidePanelProps {
   chatMessages: ChatMessage[];
   playerColor: Color;
   onSendChat: (text: string) => void;
-  height: string;
   disabled: boolean; // true when game is finished
 }
 
@@ -18,7 +17,6 @@ export function SidePanel({
   chatMessages,
   playerColor,
   onSendChat,
-  height,
   disabled,
 }: SidePanelProps) {
   const [tab, setTab] = useState<Tab>("moves");
@@ -53,10 +51,10 @@ export function SidePanel({
 
   return (
     <div
-      className="flex flex-col shrink-0"
+      className="flex flex-col"
       style={{
-        width: "160px",
-        height,
+        flex: 1,
+        minHeight: 0,
         background: "rgba(240,217,181,0.04)",
         border: "1px solid rgba(200,162,96,0.18)",
         borderRadius: "8px",

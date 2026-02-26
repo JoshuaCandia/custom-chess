@@ -14,6 +14,8 @@ import type {
   ChatMessagePayload,
 } from "./types/chess";
 import { authRouter, verifyJwt, getUserFromToken } from "./auth";
+import { userRouter } from "./user";
+import { prisma } from "./db";
 
 const CLIENT_URL = process.env.CLIENT_URL ?? "http://localhost:5173";
 
@@ -22,6 +24,7 @@ app.use(cors({ origin: CLIENT_URL, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(authRouter);
+app.use(userRouter);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -63,10 +66,9 @@ function startClock(room: Room) {
     room.status = "finished";
     if (currentTurn === "w") room.timeWhite = 0;
     else room.timeBlack = 0;
-    io.to(room.id).emit("timeout", {
-      loser: currentTurn,
-      winner: currentTurn === "w" ? "b" : "w",
-    });
+    const winner = currentTurn === "w" ? "b" : "w";
+    io.to(room.id).emit("timeout", { loser: currentTurn, winner });
+    recordGame(room, currentTurn === "w" ? "black" : "white", "timeout");
   }, remaining);
 }
 
@@ -83,6 +85,61 @@ function parseCookieValue(cookieHeader: string | undefined, name: string): strin
   if (!cookieHeader) return null;
   const match = cookieHeader.split(";").map((c) => c.trim()).find((c) => c.startsWith(`${name}=`));
   return match ? match.slice(name.length + 1) : null;
+}
+
+// ── ELO helpers ───────────────────────────────────────────────────────────────
+
+const ELO_K = 32;
+
+async function updateElo(winnerId: string, loserId: string): Promise<void> {
+  const [winner, loser] = await Promise.all([
+    prisma.user.findUnique({ where: { id: winnerId }, select: { elo: true } }),
+    prisma.user.findUnique({ where: { id: loserId }, select: { elo: true } }),
+  ]);
+  if (!winner || !loser) return;
+
+  const expected = 1 / (1 + Math.pow(10, (loser.elo - winner.elo) / 400));
+  const newWinnerElo = Math.round(winner.elo + ELO_K * (1 - expected));
+  const newLoserElo  = Math.max(100, Math.round(loser.elo  + ELO_K * (0 - expected)));
+
+  await Promise.all([
+    prisma.user.update({ where: { id: winnerId }, data: { elo: newWinnerElo } }),
+    prisma.user.update({ where: { id: loserId  }, data: { elo: newLoserElo  } }),
+  ]);
+  console.log(`[elo] ${winnerId} ${winner.elo}→${newWinnerElo}  ${loserId} ${loser.elo}→${newLoserElo}`);
+}
+
+// ── Game recorder ─────────────────────────────────────────────────────────────
+
+async function recordGame(
+  room: Room,
+  result: "white" | "black" | "draw",
+  reason: string
+): Promise<void> {
+  const white = room.players.find((p) => p.color === "w");
+  const black = room.players.find((p) => p.color === "b");
+  if (!white?.userId && !black?.userId) return; // skip guest-only games
+  try {
+    await prisma.game.create({
+      data: {
+        roomId: room.id,
+        whiteId: white?.userId ?? null,
+        blackId: black?.userId ?? null,
+        result,
+        reason,
+        timeControl: room.timeControl,
+        moveCount: room.game.history().length,
+      },
+    });
+
+    if (result !== "draw") {
+      const winnerId = result === "white" ? white?.userId : black?.userId;
+      const loserId  = result === "white" ? black?.userId : white?.userId;
+      if (winnerId && loserId) await updateElo(winnerId, loserId);
+    }
+  } catch (err) {
+    console.error("[recordGame] Failed to save game:", err);
+  }
 }
 
 // ── Health check ──────────────────────────────────────────────────────────────
@@ -116,6 +173,48 @@ io.on("connection", (socket) => {
 
   const socketUser = socket.data.user as { id: string; username: string } | null;
 
+  // ── Reconnect detection ────────────────────────────────────────────────────
+  if (socketUser) {
+    for (const [roomId, room] of rooms.entries()) {
+      const player = room.players.find(
+        (p) => p.userId === socketUser.id && !p.connected
+      );
+      if (!player || room.status !== "playing") continue;
+
+      const timer = room.reconnectTimers.get(socketUser.id);
+      if (timer) {
+        clearTimeout(timer);
+        room.reconnectTimers.delete(socketUser.id);
+      }
+
+      player.socketId = socket.id;
+      player.connected = true;
+      socket.join(roomId);
+
+      const opponent = room.players.find((p) => p.userId !== socketUser.id);
+      socket.emit("game-reconnect", {
+        roomId,
+        color: player.color,
+        fen: room.game.fen(),
+        turn: room.game.turn(),
+        isCheck: room.game.inCheck(),
+        timeControl: room.timeControl,
+        timeWhite: room.timeWhite,
+        timeBlack: room.timeBlack,
+        moveHistory: room.game.history(),
+        myUsername: player.username,
+        opponentUsername: opponent?.username ?? "Guest",
+      });
+
+      if (opponent?.connected) {
+        io.to(opponent.socketId).emit("opponent-reconnected");
+        startClock(room);
+      }
+      console.log(`[reconnect] ${socketUser.username} rejoined ${roomId}`);
+      break;
+    }
+  }
+
   // ── create-room ────────────────────────────────────────────────────────────
   socket.on("create-room", ({ timeControl }: CreateRoomPayload) => {
     const roomId = generateRoomId();
@@ -140,6 +239,7 @@ io.on("connection", (socket) => {
       timeBlack: initialMs,
       lastMoveTimestamp: 0,
       timerRef: null,
+      reconnectTimers: new Map(),
     };
     rooms.set(roomId, room);
     socket.join(roomId);
@@ -233,6 +333,15 @@ io.on("connection", (socket) => {
 
     if (isGameOver) {
       room.status = "finished";
+      if (isCheckmate) {
+        // turn() is now the player in checkmate; the mover (opposite) won
+        const winner = room.game.turn() === "w" ? "black" : "white";
+        recordGame(room, winner, "checkmate");
+      } else if (isStalemate) {
+        recordGame(room, "draw", "stalemate");
+      } else if (isDraw) {
+        recordGame(room, "draw", "draw");
+      }
     } else {
       startClock(room);
     }
@@ -264,6 +373,55 @@ io.on("connection", (socket) => {
   socket.on("webrtc-answer",        ({ roomId, sdp       }) => relayToOther("webrtc-answer",        roomId, { sdp }));
   socket.on("webrtc-ice-candidate", ({ roomId, candidate }) => relayToOther("webrtc-ice-candidate", roomId, { candidate }));
 
+  // ── resign ─────────────────────────────────────────────────────────────────
+  socket.on("resign", ({ roomId }: { roomId: string }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== "playing") return;
+
+    const player = room.players.find((p) => p.socketId === socket.id);
+    if (!player) return;
+
+    clearClock(room);
+    room.status = "finished";
+    const winner = player.color === "w" ? "black" : "white";
+    io.to(roomId).emit("resigned", { loser: player.color, winner });
+    recordGame(room, winner, "resign");
+    console.log(`[resign] ${roomId} — ${player.color} resigned`);
+  });
+
+  // ── draw-offer ─────────────────────────────────────────────────────────────
+  socket.on("draw-offer", ({ roomId }: { roomId: string }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== "playing") return;
+
+    const player = room.players.find((p) => p.socketId === socket.id);
+    if (!player) return;
+
+    const opponent = room.players.find((p) => p.socketId !== socket.id);
+    if (opponent?.connected) {
+      io.to(opponent.socketId).emit("draw-offered");
+    }
+  });
+
+  // ── draw-response ──────────────────────────────────────────────────────────
+  socket.on("draw-response", ({ roomId, accept }: { roomId: string; accept: boolean }) => {
+    const room = rooms.get(roomId);
+    if (!room || room.status !== "playing") return;
+
+    if (accept) {
+      clearClock(room);
+      room.status = "finished";
+      io.to(roomId).emit("draw-accepted");
+      recordGame(room, "draw", "agreement");
+      console.log(`[draw] ${roomId} — draw agreed`);
+    } else {
+      const offerer = room.players.find((p) => p.socketId !== socket.id);
+      if (offerer?.connected) {
+        io.to(offerer.socketId).emit("draw-declined");
+      }
+    }
+  });
+
   // ── chat-message ───────────────────────────────────────────────────────────
   socket.on("chat-message", ({ roomId, text }: ChatMessagePayload) => {
     const room = rooms.get(roomId);
@@ -290,16 +448,29 @@ io.on("connection", (socket) => {
       const disconnected = room.players[idx];
       disconnected.connected = false;
 
-      const remaining = room.players.filter((p) => p.socketId !== socket.id);
+      const others = room.players.filter((p) => p.socketId !== socket.id);
 
-      if (remaining.length === 0) {
+      if (others.length === 0 || room.status !== "playing") {
         rooms.delete(roomId);
-      } else {
+        break;
+      }
+
+      // 30s grace period for everyone — authenticated users can reconnect
+      io.to(roomId).emit("opponent-offline", { color: disconnected.color });
+      const timer = setTimeout(() => {
+        if (room.status !== "playing") return;
+        room.status = "finished";
+        const winner = disconnected.color === "w" ? "black" : "white";
         io.to(roomId).emit("player-disconnected", {
           color: disconnected.color,
-          message: `${disconnected.color === "w" ? "White" : "Black"} disconnected.`,
+          message: `${disconnected.color === "w" ? "White" : "Black"} abandoned the game.`,
         });
-        if (room.status !== "playing") rooms.delete(roomId);
+        recordGame(room, winner, "abandoned");
+        rooms.delete(roomId);
+      }, 30_000);
+
+      if (disconnected.userId) {
+        room.reconnectTimers.set(disconnected.userId, timer);
       }
       break;
     }
