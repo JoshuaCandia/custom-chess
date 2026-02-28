@@ -325,6 +325,10 @@ export function useSocket(currentUsername: string) {
     setGameState(null);
   }
 
+  function resetGame() {
+    setGameState(null);
+  }
+
   function offerDraw(roomId: string) {
     setGameState((prev) => {
       if (!prev) return prev;
@@ -352,6 +356,7 @@ export function useSocket(currentUsername: string) {
     sendChat,
     resign,
     leaveRoom,
+    resetGame,
     offerDraw,
     respondDraw,
   };

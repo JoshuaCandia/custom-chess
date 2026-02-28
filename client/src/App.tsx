@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate, Outlet, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
+import type { GameState } from "./types/chess";
+import { useIsMobile } from "./hooks/useIsMobile";
 import { AnimatePresence } from "framer-motion";
 import { useAuthStore } from "./store/authStore";
 import { useSocket } from "./hooks/useSocket";
@@ -21,6 +23,7 @@ import { WelcomeModal } from "./components/WelcomeModal";
 import { ProfilePage } from "./pages/ProfilePage";
 import { LoginPage } from "./pages/LoginPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { PuzzlePage } from "./pages/PuzzlePage";
 import { apiUpdateSettings } from "./lib/userApi";
 import { BOARD_THEMES, type BoardTheme } from "./types/theme";
 
@@ -171,6 +174,91 @@ function WaitingScreen({
   );
 }
 
+// ── Mobile bottom controls bar ────────────────────────────────────────────────
+function MobileControls({
+  gameState,
+  onResign,
+  onOfferDraw,
+  onRespondDraw,
+}: {
+  gameState: GameState;
+  onResign: () => void;
+  onOfferDraw: () => void;
+  onRespondDraw: (accept: boolean) => void;
+}) {
+  const [confirmResign, setConfirmResign] = useState(false);
+  const { status, drawOfferPending, drawOfferSent } = gameState;
+
+  if (status !== "playing") return null;
+
+  const bar = {
+    flexShrink: 0 as const,
+    padding: "10px 12px",
+    paddingBottom: "max(10px, env(safe-area-inset-bottom))",
+    borderTop: "1px solid var(--c-border-faint)",
+    background: "var(--c-surface)",
+  };
+
+  if (drawOfferPending) {
+    return (
+      <div style={{ ...bar, display: "flex", flexDirection: "column", gap: "8px" }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: 600, textAlign: "center", color: "var(--c-accent)" }}>
+          ½ Empate propuesto por el oponente
+        </span>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={() => onRespondDraw(true)}
+            style={{ flex: 1, padding: "11px 0", borderRadius: "12px", border: "1px solid rgba(74,222,128,0.4)", background: "rgba(74,222,128,0.12)", color: "var(--c-win)", fontWeight: 700, fontSize: "0.9rem", cursor: "pointer" }}
+          >
+            Aceptar
+          </button>
+          <button
+            onClick={() => onRespondDraw(false)}
+            style={{ flex: 1, padding: "11px 0", borderRadius: "12px", border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.1)", color: "var(--c-loss)", fontWeight: 700, fontSize: "0.9rem", cursor: "pointer" }}
+          >
+            Rechazar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...bar, display: "flex", gap: "8px" }}>
+      <button
+        onClick={onOfferDraw}
+        disabled={drawOfferSent}
+        style={{ flex: 1, padding: "11px 0", borderRadius: "12px", border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: drawOfferSent ? "var(--c-text-faint)" : "var(--c-text-muted)", fontSize: "0.875rem", cursor: drawOfferSent ? "default" : "pointer" }}
+      >
+        {drawOfferSent ? "Empate propuesto…" : "½ Empate"}
+      </button>
+      {confirmResign ? (
+        <>
+          <button
+            onClick={() => { onResign(); setConfirmResign(false); }}
+            style={{ flex: 1, padding: "11px 0", borderRadius: "12px", border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.15)", color: "var(--c-loss)", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer" }}
+          >
+            ✓ Confirmar
+          </button>
+          <button
+            onClick={() => setConfirmResign(false)}
+            style={{ padding: "11px 16px", borderRadius: "12px", border: "1px solid var(--c-border-faint)", background: "none", color: "var(--c-text-faint)", fontSize: "0.875rem", cursor: "pointer" }}
+          >
+            ✕
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={() => setConfirmResign(true)}
+          style={{ flex: 1, padding: "11px 0", borderRadius: "12px", border: "1px solid var(--c-border)", background: "var(--c-surface-2)", color: "var(--c-text-muted)", fontSize: "0.875rem", cursor: "pointer" }}
+        >
+          Rendirse
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Main game content ──────────────────────────────────────────────────────────
 function MainContent() {
   const { user, logout } = useAuth();
@@ -188,10 +276,12 @@ function MainContent() {
     sendChat,
     resign,
     leaveRoom,
+    resetGame,
     offerDraw,
     respondDraw,
   } = useSocket(currentUsername);
   const { theme, changeTheme } = useTheme();
+  const isMobile = useIsMobile();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const navigate = useNavigate();
 
@@ -260,13 +350,90 @@ function MainContent() {
     );
   }
 
-  // ── Game view ────────────────────────────────────────────────────────────────
+  // ── Shared game view vars ─────────────────────────────────────────────────
   const opponentColor = gameState.playerColor === "w" ? "b" : "w";
   const showClocks = gameState.timeControl !== null;
   const myTime = gameState.playerColor === "w" ? gameState.timeWhite : gameState.timeBlack;
   const opponentTime = opponentColor === "w" ? gameState.timeWhite : gameState.timeBlack;
   const myClockActive = gameState.turn === gameState.playerColor && gameState.status === "playing";
   const opponentClockActive = gameState.turn === opponentColor && gameState.status === "playing";
+
+  const sharedErrorToast = error && (
+    <div style={{
+      position: "fixed", top: "16px", left: "50%", transform: "translateX(-50%)",
+      zIndex: 50, fontSize: "0.75rem", fontWeight: 500, padding: "6px 16px",
+      borderRadius: "12px", pointerEvents: "none", background: "rgba(239,68,68,0.92)",
+      backdropFilter: "blur(8px)", color: "#fff", boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+    }}>
+      {error}
+    </div>
+  );
+
+  // ── Mobile layout ──────────────────────────────────────────────────────────
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100svh", overflow: "hidden" }}>
+
+        {/* Compact header */}
+        <header style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          height: "40px", padding: "0 10px", flexShrink: 0,
+          borderBottom: "1px solid var(--c-border-faint)",
+          background: "var(--c-surface)",
+        }}>
+          <span style={{
+            fontFamily: "monospace", fontSize: "0.75rem", fontWeight: 700,
+            letterSpacing: "0.1em", color: "var(--c-accent)",
+            background: "var(--c-accent-dim)", border: "1px solid var(--c-border)",
+            borderRadius: "5px", padding: "2px 8px",
+          }}>
+            {gameState.roomId}
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            <ThemePicker current={theme} onChange={handleChangeTheme} />
+            <VoiceButton status={voiceStatus} isMuted={isMuted} onStart={startVoiceChat} onToggleMute={toggleMute} onStop={stopVoiceChat} />
+          </div>
+        </header>
+
+        {/* Opponent row */}
+        <div style={{ padding: "4px 8px", flexShrink: 0 }}>
+          <PlayerRow colorSide={opponentColor} label="Opponent" username={gameState.opponentUsername} timeMs={opponentTime} isActive={opponentClockActive} showClock={showClocks} />
+        </div>
+
+        {/* Board — fills maximum square space */}
+        <div style={{ width: "min(100vw, calc(100svh - 200px))", flexShrink: 0, alignSelf: "center" }}>
+          <Board gameState={gameState} onMove={(move) => makeMove(gameState.roomId, move)} theme={theme} />
+        </div>
+
+        {/* My row */}
+        <div style={{ padding: "4px 8px", flexShrink: 0 }}>
+          <PlayerRow colorSide={gameState.playerColor} label="You" username={gameState.myUsername} timeMs={myTime} isActive={myClockActive} showClock={showClocks} />
+        </div>
+
+        {/* Status */}
+        <div style={{ padding: "2px 8px", flexShrink: 0 }}>
+          <GameStatus gameState={gameState} />
+        </div>
+
+        {/* Moves / chat — fills remaining space */}
+        <div style={{ flex: 1, minHeight: 0, padding: "0 8px 4px" }}>
+          <SidePanel moves={gameState.moveHistory} chatMessages={chatMessages} playerColor={gameState.playerColor} onSendChat={(text) => sendChat(gameState.roomId, text)} disabled={gameState.status === "finished"} />
+        </div>
+
+        {/* Bottom controls */}
+        <MobileControls gameState={gameState} onResign={() => resign(gameState.roomId)} onOfferDraw={() => offerDraw(gameState.roomId)} onRespondDraw={(accept) => respondDraw(gameState.roomId, accept)} />
+
+        {sharedErrorToast}
+        {gameState.status === "finished" && <GameOverModal gameState={gameState} onPlayAgain={resetGame} />}
+        {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
+        <AnimatePresence>
+          {justRegistered && <WelcomeModal key="welcome" username={justRegistered} onClose={() => setJustRegistered(null)} />}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ── Desktop layout ─────────────────────────────────────────────────────────
   const boardSize = "min(680px, min(calc(100vw - 252px), calc(100vh - 60px)))";
 
   return (
@@ -376,20 +543,10 @@ function MainContent() {
         </div>
       </div>
 
-      {/* Error toast */}
-      {error && (
-        <div style={{
-          position: "fixed", top: "16px", left: "50%", transform: "translateX(-50%)",
-          zIndex: 50, fontSize: "0.75rem", fontWeight: 500, padding: "6px 16px",
-          borderRadius: "12px", pointerEvents: "none", background: "rgba(239,68,68,0.92)",
-          backdropFilter: "blur(8px)", color: "#fff", boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-        }}>
-          {error}
-        </div>
-      )}
+      {sharedErrorToast}
 
       {gameState.status === "finished" && (
-        <GameOverModal gameState={gameState} onPlayAgain={() => window.location.reload()} />
+        <GameOverModal gameState={gameState} onPlayAgain={resetGame} />
       )}
 
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
@@ -414,7 +571,8 @@ export default function App() {
       {/* Protected routes — require auth or guest mode */}
       <Route element={<ProtectedLayout />}>
         <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/*" element={<MainContent />} />
+        <Route path="/puzzles"  element={<PuzzlePage />} />
+        <Route path="/*"        element={<MainContent />} />
       </Route>
     </Routes>
   );

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useColorMode } from "../store/colorModeStore";
 import { useTheme } from "../hooks/useTheme";
 import { useAuth } from "../hooks/useAuth";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { ThemePicker } from "../components/ThemePicker";
+import { AppLayout } from "../components/AppLayout";
 import { BOARD_THEMES } from "../types/theme";
 import { apiUpdateSettings } from "../lib/userApi";
 import type { BoardTheme } from "../types/theme";
@@ -40,6 +43,8 @@ export function SettingsPage() {
   const { mode, setMode } = useColorMode();
   const { theme, changeTheme } = useTheme();
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   function handleBoardTheme(t: BoardTheme) {
     changeTheme(t);
@@ -47,6 +52,7 @@ export function SettingsPage() {
   }
 
   return (
+    <AppLayout>
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -54,7 +60,7 @@ export function SettingsPage() {
       style={{
         minHeight: "100svh",
         background: "var(--c-bg)",
-        padding: "20px 16px",
+        padding: isMobile ? "20px 16px 96px" : "20px 16px",
         maxWidth: "520px",
         margin: "0 auto",
         display: "flex",
@@ -62,7 +68,8 @@ export function SettingsPage() {
         gap: "24px",
       }}
     >
-      {/* Header */}
+      {/* Header (mobile only — sidebar handles desktop) */}
+      <div className="sm:hidden">
       <div
         style={{
           display: "flex",
@@ -115,6 +122,7 @@ export function SettingsPage() {
 
         {/* Spacer to center the logo */}
         <div style={{ width: "72px" }} />
+      </div>
       </div>
 
       {/* Appearance */}
@@ -293,37 +301,32 @@ export function SettingsPage() {
             </button>
           </div>
 
-          <button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-            style={{
-              width: "100%",
-              padding: "9px",
-              borderRadius: "10px",
-              border: "1px solid var(--c-border-faint)",
-              background: "transparent",
-              color: "var(--c-text-muted)",
-              fontSize: "0.8rem",
-              cursor: "pointer",
-              transition: "all 0.15s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(239,68,68,0.08)";
-              e.currentTarget.style.color = "rgba(239,68,68,0.7)";
-              e.currentTarget.style.borderColor = "rgba(239,68,68,0.2)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--c-text-muted)";
-              e.currentTarget.style.borderColor = "var(--c-border-faint)";
-            }}
-          >
-            Sign out
-          </button>
+          {confirmLogout ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => { logout(); navigate("/login"); }}
+                className="btn btn-danger flex-1"
+              >
+                ✓ Confirmar
+              </button>
+              <button
+                onClick={() => setConfirmLogout(false)}
+                className="btn btn-ghost"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmLogout(true)}
+              className="btn btn-ghost w-full"
+            >
+              Cerrar sesión
+            </button>
+          )}
         </Section>
       )}
     </motion.div>
+    </AppLayout>
   );
 }

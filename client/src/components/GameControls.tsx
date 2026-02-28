@@ -97,11 +97,8 @@ export function GameControls({
       {confirmResign ? (
         <>
           <button
-            onClick={() => {
-              onResign();
-              setConfirmResign(false);
-            }}
-            className="rounded-lg text-xs font-semibold transition-all"
+            onClick={() => { onResign(); setConfirmResign(false); }}
+            className="rounded-lg transition-all"
             style={{
               background: "rgba(239,68,68,0.18)",
               border: "1px solid rgba(239,68,68,0.4)",
@@ -112,11 +109,11 @@ export function GameControls({
               cursor: "pointer",
             }}
           >
-            Confirm resign
+            ✓ Rendirse
           </button>
           <button
             onClick={() => setConfirmResign(false)}
-            className="rounded-lg text-xs transition-all"
+            className="rounded-lg transition-all"
             style={{
               background: "none",
               border: "1px solid var(--c-border-faint)",
@@ -126,7 +123,7 @@ export function GameControls({
               cursor: "pointer",
             }}
           >
-            Cancel
+            ✕
           </button>
         </>
       ) : (
@@ -150,7 +147,7 @@ export function GameControls({
             e.currentTarget.style.borderColor = "var(--c-border-faint)";
           }}
         >
-          Resign
+          Rendirse
         </button>
       )}
     </div>

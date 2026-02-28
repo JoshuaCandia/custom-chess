@@ -125,15 +125,15 @@ export function GameOverModal({ gameState, onPlayAgain }: GameOverModalProps) {
           </p>
         )}
 
-        {/* Play again */}
+        {/* Back to menu */}
         <button
           onClick={onPlayAgain}
           className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-[0.98]"
-          style={{ background: "#c8a56a", color: "#1c1512" }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#d4b47a")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#c8a56a")}
+          style={{ background: "var(--c-accent)", color: "var(--c-bg)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
         >
-          Play Again
+          ← Menú
         </button>
       </div>
 

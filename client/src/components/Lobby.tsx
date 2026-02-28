@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import type { TimeControl } from "../types/chess";
 import type { AuthUser } from "../types/user";
 import { apiFetchProfile } from "../lib/userApi";
+import { AppLayout } from "./AppLayout";
 
 interface LobbyProps {
   onCreateRoom: (timeControl: TimeControl) => void;
@@ -17,20 +17,34 @@ interface LobbyProps {
 }
 
 const TIME_OPTIONS: { label: string; sub: string; value: TimeControl }[] = [
-  { label: "∞",   sub: "No limit", value: null },
-  { label: "1′",  sub: "Bullet",   value: 60   },
-  { label: "5′",  sub: "Blitz",    value: 300  },
-  { label: "10′", sub: "Rapid",    value: 600  },
+  { label: "∞",   sub: "Sin límite", value: null },
+  { label: "1′",  sub: "Bullet",     value: 60   },
+  { label: "5′",  sub: "Blitz",      value: 300  },
+  { label: "10′", sub: "Rapid",      value: 600  },
 ];
 
 const lobbyVariants = {
   initial: { opacity: 0, y: 24 },
   animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-  exit: { opacity: 0, y: -16, transition: { duration: 0.25, ease: "easeIn" } },
+  exit:    { opacity: 0, y: -16, transition: { duration: 0.25, ease: "easeIn" } },
 };
 
-// ── Mini stats widget ──────────────────────────────────────────────────────────
+// ── Loading dots ──────────────────────────────────────────────────────────────
+function LoadingDots() {
+  return (
+    <div className="flex gap-1.5">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-c-accent"
+          style={{ animation: `dot 1.4s ease-in-out ${i * 0.2}s infinite` }}
+        />
+      ))}
+    </div>
+  );
+}
 
+// ── Mini stats widget ─────────────────────────────────────────────────────────
 function MiniStats({ username }: { username: string }) {
   const { data: profile, isLoading } = useQuery({
     queryKey: ["profile", username],
@@ -39,32 +53,10 @@ function MiniStats({ username }: { username: string }) {
     retry: false,
   });
 
-  const panelStyle: React.CSSProperties = {
-    background: "var(--c-surface)",
-    border: "1px solid var(--c-border-faint)",
-    borderRadius: "16px",
-    padding: "20px",
-  };
-
   if (isLoading) {
     return (
-      <div style={{ ...panelStyle, display: "flex", alignItems: "center", justifyContent: "center", minHeight: "120px" }}>
-        <div style={{ display: "flex", gap: "5px" }}>
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              style={{
-                width: "5px",
-                height: "5px",
-                borderRadius: "50%",
-                background: "var(--c-accent)",
-                opacity: 0.5,
-                animation: `dot 1.4s ease-in-out ${i * 0.2}s infinite`,
-              }}
-            />
-          ))}
-        </div>
-        <style>{`@keyframes dot { 0%,80%,100%{opacity:.2;transform:scale(.85)} 40%{opacity:.9;transform:scale(1)} }`}</style>
+      <div className="card flex items-center justify-center min-h-[120px]">
+        <LoadingDots />
       </div>
     );
   }
@@ -81,84 +73,57 @@ function MiniStats({ username }: { username: string }) {
       initial={{ opacity: 0, x: 16 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.4, delay: 0.15 }}
-      style={{ ...panelStyle, display: "flex", flexDirection: "column", gap: "16px" }}
+      className="card flex flex-col gap-4"
     >
       {/* ELO */}
-      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
+      <div className="flex items-end justify-between">
         <div>
-          <p style={{ margin: 0, fontSize: "2rem", fontWeight: 800, color: "var(--c-text)", lineHeight: 1 }}>
-            {elo}
-          </p>
-          <p style={{ margin: "4px 0 0", fontSize: "0.7rem", color: "var(--c-accent)", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 600 }}>
-            ELO Rating
-          </p>
+          <p className="m-0 text-[2rem] font-extrabold text-c-base leading-none">{elo}</p>
+          <p className="m-0 mt-1 label-xs text-c-accent">ELO Rating</p>
         </div>
-        <span style={{ fontSize: "1.6rem", opacity: 0.12, color: "var(--c-text)" }}>♔</span>
+        <span className="text-[1.6rem] opacity-10 text-c-base">♔</span>
       </div>
 
-      {/* Win/draw/loss bar */}
+      {/* Progress bar */}
       {stats.total > 0 ? (
         <>
-          <div
-            style={{
-              height: "6px",
-              borderRadius: "3px",
-              overflow: "hidden",
-              background: "var(--c-surface-2)",
-              display: "flex",
-            }}
-          >
-            <div style={{ width: `${winPct}%`,  background: "var(--c-win)",  transition: "width 0.6s ease" }} />
-            <div style={{ width: `${drawPct}%`, background: "var(--c-draw)", transition: "width 0.6s ease" }} />
-            <div style={{ width: `${lossPct}%`, background: "var(--c-loss)", transition: "width 0.6s ease" }} />
+          <div className="h-1.5 rounded-full overflow-hidden bg-c-surface2 flex">
+            <div className="bg-c-win  transition-[width_0.6s]" style={{ width: `${winPct}%` }} />
+            <div className="bg-c-draw transition-[width_0.6s]" style={{ width: `${drawPct}%` }} />
+            <div className="bg-c-loss transition-[width_0.6s]" style={{ width: `${lossPct}%` }} />
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <StatPill value={stats.wins}   label="W"        color="var(--c-win)"        />
-            <StatPill value={stats.draws}  label="D"        color="var(--c-draw)"       />
-            <StatPill value={stats.losses} label="L"        color="var(--c-loss)"       />
-            <StatPill value={`${stats.winRate}%`} label="Win rate" color="var(--c-text-faint)" />
+          <div className="flex justify-between">
+            <StatPill value={stats.wins}           label="V"       colorClass="text-c-win"   />
+            <StatPill value={stats.draws}          label="E"       colorClass="text-c-draw"  />
+            <StatPill value={stats.losses}         label="D"       colorClass="text-c-loss"  />
+            <StatPill value={`${stats.winRate}%`}  label="% vic."  colorClass="text-c-faint" />
           </div>
         </>
       ) : (
-        <p style={{ margin: 0, fontSize: "0.78rem", color: "var(--c-text-faint)", textAlign: "center", padding: "8px 0" }}>
-          No games yet — create a room to start!
+        <p className="m-0 text-[0.78rem] text-c-faint text-center py-2">
+          Sin partidas — ¡creá una sala!
         </p>
       )}
 
       {/* Recent games */}
       {stats.recentGames.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <p style={{ margin: 0, fontSize: "0.68rem", fontWeight: 700, color: "var(--c-text-faint)", textTransform: "uppercase", letterSpacing: "0.1em" }}>
-            Recent
-          </p>
+        <div className="flex flex-col gap-1.5">
+          <p className="m-0 label-xs">Recientes</p>
           {stats.recentGames.slice(0, 3).map((g) => {
             const isWin  = (g.color === "white" && g.result === "white") || (g.color === "black" && g.result === "black");
             const isDraw = g.result === "draw";
-            const resultColor = isWin ? "var(--c-win)" : isDraw ? "var(--c-draw)" : "var(--c-loss)";
-            const resultLabel = isWin ? "W" : isDraw ? "D" : "L";
+            const resultClass = isWin ? "text-c-win" : isDraw ? "text-c-draw" : "text-c-loss";
 
             return (
               <div
                 key={g.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "6px 10px",
-                  borderRadius: "8px",
-                  background: "var(--c-surface-2)",
-                  border: "1px solid var(--c-border-faint)",
-                }}
+                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-c-surface2 border border-c-faint"
               >
-                <span style={{ fontSize: "0.9rem", color: "var(--c-text-muted)" }}>
-                  {g.color === "white" ? "♔" : "♚"}
-                </span>
-                <span style={{ flex: 1, fontSize: "0.75rem", color: "var(--c-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  vs {g.opponent}
-                </span>
-                <span style={{ fontSize: "0.75rem", fontWeight: 700, color: resultColor }}>
-                  {resultLabel}
+                <span className="text-c-muted">{g.color === "white" ? "♔" : "♚"}</span>
+                <span className="flex-1 text-xs text-c-muted truncate">vs {g.opponent}</span>
+                <span className={`text-xs font-bold ${resultClass}`}>
+                  {isWin ? "V" : isDraw ? "E" : "D"}
                 </span>
               </div>
             );
@@ -169,21 +134,20 @@ function MiniStats({ username }: { username: string }) {
   );
 }
 
-function StatPill({ value, label, color }: { value: number | string; label: string; color: string }) {
+function StatPill({ value, label, colorClass }: { value: number | string; label: string; colorClass: string }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-      <span style={{ fontSize: "1rem", fontWeight: 700, color, lineHeight: 1 }}>{value}</span>
-      <span style={{ fontSize: "0.62rem", color: "var(--c-text-faint)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+    <div className="flex flex-col items-center gap-0.5">
+      <span className={`text-base font-bold leading-none ${colorClass}`}>{value}</span>
+      <span className="text-[0.62rem] text-c-faint uppercase tracking-wide">{label}</span>
     </div>
   );
 }
 
-// ── Main Lobby ─────────────────────────────────────────────────────────────────
-
-export function Lobby({ onCreateRoom, onJoinRoom, error, onSignIn, user, onViewProfile, onLogout }: LobbyProps) {
+// ── Main Lobby ────────────────────────────────────────────────────────────────
+export function Lobby({ onCreateRoom, onJoinRoom, error, onSignIn, user, onViewProfile }: LobbyProps) {
   const [timeControl, setTimeControl] = useState<TimeControl>(null);
   const [roomInput, setRoomInput] = useState("");
-  const navigate = useNavigate();
+  const isLoggedIn = user != null;
 
   function handleJoin(e: React.FormEvent) {
     e.preventDefault();
@@ -191,337 +155,129 @@ export function Lobby({ onCreateRoom, onJoinRoom, error, onSignIn, user, onViewP
     if (id) onJoinRoom(id);
   }
 
-  const isLoggedIn = user != null;
-
   return (
+    <AppLayout>
     <motion.div
       variants={lobbyVariants}
       initial="initial"
       animate="animate"
       exit="exit"
-      style={{ minHeight: "100svh", display: "flex", flexDirection: "column", background: "var(--c-bg)" }}
+      className="min-h-svh flex flex-col bg-c-bg"
     >
-      {/* ── Top nav ── */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 20px",
-          height: "52px",
-          flexShrink: 0,
-          borderBottom: "1px solid var(--c-border-faint)",
-          background: "var(--c-surface)",
-        }}
-      >
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "1.2rem", lineHeight: 1 }}>♟</span>
-          <span style={{ fontSize: "0.8rem", fontWeight: 700, letterSpacing: "-0.01em", color: "var(--c-text)" }}>
-            Custom Chess
-          </span>
+      {/* ── Top nav (mobile only — sidebar handles desktop) ── */}
+      <header className="page-nav sm:hidden">
+        <div className="flex items-center gap-2">
+          <span className="text-xl leading-none">♟</span>
+          <span className="text-sm font-bold tracking-tight text-c-base">Custom Chess</span>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          {/* Settings */}
-          <button
-            onClick={() => navigate("/settings")}
-            title="Settings"
-            style={{
-              background: "none",
-              border: "1px solid var(--c-border-faint)",
-              borderRadius: "8px",
-              padding: "5px 9px",
-              color: "var(--c-text-faint)",
-              fontSize: "0.85rem",
-              cursor: "pointer",
-              transition: "all 0.15s",
-              lineHeight: 1,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--c-border)";
-              e.currentTarget.style.color = "var(--c-text-muted)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--c-border-faint)";
-              e.currentTarget.style.color = "var(--c-text-faint)";
-            }}
-          >
-            ⚙
-          </button>
-
+        <div className="flex items-center gap-2">
           {isLoggedIn ? (
-            <>
-              <button
-                onClick={onViewProfile}
-                style={{
-                  background: "var(--c-accent-dim)",
-                  border: "1px solid var(--c-border)",
-                  borderRadius: "8px",
-                  color: "var(--c-accent)",
-                  fontSize: "0.78rem",
-                  cursor: "pointer",
-                  padding: "5px 12px",
-                  fontWeight: 600,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--c-accent-dim)")}
-              >
-                {user.username}{user.elo != null ? ` · ${user.elo}` : ""}
-              </button>
-              <button
-                onClick={onLogout}
-                style={{
-                  background: "none",
-                  border: "1px solid var(--c-border-faint)",
-                  borderRadius: "8px",
-                  color: "var(--c-text-faint)",
-                  fontSize: "0.78rem",
-                  cursor: "pointer",
-                  padding: "5px 10px",
-                  transition: "color 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--c-text-muted)")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--c-text-faint)")}
-              >
-                Sign out
-              </button>
-            </>
-          ) : onSignIn ? (
             <button
-              onClick={onSignIn}
-              style={{
-                background: "var(--c-accent-dim)",
-                border: "1px solid var(--c-border)",
-                borderRadius: "8px",
-                color: "var(--c-accent)",
-                fontSize: "0.78rem",
-                cursor: "pointer",
-                padding: "5px 12px",
-                fontWeight: 600,
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--c-accent-dim)")}
+              className="btn btn-accent-outline text-xs max-w-[160px] truncate"
+              onClick={onViewProfile}
             >
-              Sign in
+              {user.username}{user.elo != null ? ` · ${user.elo}` : ""}
+            </button>
+          ) : onSignIn ? (
+            <button className="btn btn-accent-outline text-xs" onClick={onSignIn}>
+              Iniciar sesión
             </button>
           ) : null}
         </div>
       </header>
 
       {/* ── Page body ── */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: isLoggedIn ? "flex-start" : "center",
-          justifyContent: "center",
-          padding: isLoggedIn ? "40px 20px" : "0 20px",
-        }}
-      >
-        <div
-          style={{
-            width: "100%",
-            maxWidth: isLoggedIn ? "760px" : "340px",
-            display: "grid",
-            gridTemplateColumns: isLoggedIn ? "340px 1fr" : "1fr",
-            gap: "24px",
-            alignItems: "start",
-          }}
-        >
-          {/* ── Play card ── */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            {!isLoggedIn && (
-              <div style={{ textAlign: "center", marginBottom: "4px" }}>
-                <span style={{ fontSize: "2.5rem", lineHeight: 1 }}>♟</span>
-                <h1 style={{ margin: "8px 0 4px", fontSize: "1.5rem", fontWeight: 800, letterSpacing: "-0.02em", color: "var(--c-text)" }}>
-                  Custom Chess
-                </h1>
-                <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--c-text-muted)" }}>
-                  Play chess with your teammates
-                </p>
-              </div>
-            )}
+      <div className={`flex-1 flex justify-center px-4 pb-24 md:pb-8 ${isLoggedIn ? "items-start pt-8" : "items-center py-8"}`}>
+        <div className={`w-full ${isLoggedIn ? "max-w-[760px]" : "max-w-sm"}`}>
+          <div className={isLoggedIn ? "grid grid-cols-1 md:grid-cols-[340px_1fr] gap-6 items-start" : "flex flex-col gap-5"}>
 
-            {isLoggedIn && (
-              <div>
-                <h2 style={{ margin: "0 0 2px", fontSize: "1.25rem", fontWeight: 800, letterSpacing: "-0.02em", color: "var(--c-text)" }}>
-                  Play a game
-                </h2>
-                <p style={{ margin: 0, fontSize: "0.82rem", color: "var(--c-text-faint)" }}>
-                  Create a private room or join an existing one
-                </p>
-              </div>
-            )}
+            {/* ── Play card ── */}
+            <div className="flex flex-col gap-5">
 
-            {/* Error */}
-            {error && (
-              <div
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  background: "rgba(185,28,28,0.1)",
-                  color: "var(--c-loss)",
-                  border: "1px solid rgba(185,28,28,0.2)",
-                  fontSize: "0.85rem",
-                }}
-              >
-                {error}
-              </div>
-            )}
+              {/* Hero (guest only) */}
+              {!isLoggedIn && (
+                <div className="text-center mb-1">
+                  <span className="text-[2.5rem] leading-none">♟</span>
+                  <h1 className="m-0 mt-2 mb-1 text-2xl font-extrabold tracking-tight text-c-base">
+                    Custom Chess
+                  </h1>
+                  <p className="m-0 text-sm text-c-muted">Jugá ajedrez con tus amigos</p>
+                </div>
+              )}
 
-            {/* Time control */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <label
-                style={{
-                  fontSize: "0.68rem",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.1em",
-                  color: "var(--c-text-faint)",
-                }}
-              >
-                Time control
-              </label>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
-                {TIME_OPTIONS.map((opt) => {
-                  const active = timeControl === opt.value;
-                  return (
+              {/* Section title (logged-in) */}
+              {isLoggedIn && (
+                <div>
+                  <h2 className="m-0 mb-0.5 text-xl font-extrabold tracking-tight text-c-base">
+                    Jugar
+                  </h2>
+                  <p className="m-0 text-[0.82rem] text-c-faint">
+                    Creá una sala o ingresá a una existente
+                  </p>
+                </div>
+              )}
+
+              {/* Error */}
+              {error && <div className="error-banner">{error}</div>}
+
+              {/* Time control */}
+              <div className="flex flex-col gap-2">
+                <span className="label-xs">Control de tiempo</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {TIME_OPTIONS.map((opt) => (
                     <button
                       key={String(opt.value)}
+                      className={`btn-tc ${timeControl === opt.value ? "active" : ""}`}
                       onClick={() => setTimeControl(opt.value)}
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: "2px",
-                        padding: "10px 4px",
-                        borderRadius: "10px",
-                        fontSize: "0.9rem",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        transition: "all 0.15s",
-                        background: active ? "var(--c-accent)" : "var(--c-surface-2)",
-                        color: active ? "var(--c-bg)" : "var(--c-text-muted)",
-                        border: active ? "2px solid transparent" : "2px solid var(--c-border-faint)",
-                      }}
                     >
                       {opt.label}
-                      <span style={{ fontSize: "0.62rem", fontWeight: 400, opacity: 0.7 }}>{opt.sub}</span>
+                      <span className="text-[0.6rem] font-normal opacity-70">{opt.sub}</span>
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
+
+              {/* Create room */}
+              <button className="btn btn-primary" onClick={() => onCreateRoom(timeControl)}>
+                Crear sala
+              </button>
+
+              {/* Divider */}
+              <div className="flex items-center gap-3">
+                <div className="divider flex-1" />
+                <span className="text-[0.72rem] text-c-faint">o unirse a una</span>
+                <div className="divider flex-1" />
+              </div>
+
+              {/* Join room */}
+              <form onSubmit={handleJoin} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="SALA-4F2"
+                  value={roomInput}
+                  onChange={(e) => setRoomInput(e.target.value)}
+                  className="input-field auto-width uppercase flex-1"
+                />
+                <button type="submit" className="btn btn-secondary shrink-0">
+                  Entrar
+                </button>
+              </form>
+
+              {/* Guest CTA */}
+              {!isLoggedIn && onSignIn && (
+                <button className="btn btn-accent-outline w-full py-2.5" onClick={onSignIn}>
+                  ♟ Iniciá sesión para guardar tu progreso
+                </button>
+              )}
             </div>
 
-            {/* Create room */}
-            <button
-              onClick={() => onCreateRoom(timeControl)}
-              style={{
-                width: "100%",
-                padding: "13px",
-                borderRadius: "12px",
-                fontSize: "0.9rem",
-                fontWeight: 700,
-                cursor: "pointer",
-                transition: "opacity 0.15s, transform 0.1s",
-                background: "var(--c-accent)",
-                color: "var(--c-bg)",
-                border: "none",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-              onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.98)")}
-              onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-            >
-              Create Room
-            </button>
-
-            {/* Divider */}
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <div style={{ flex: 1, height: "1px", background: "var(--c-border-faint)" }} />
-              <span style={{ fontSize: "0.72rem", color: "var(--c-text-faint)" }}>or join existing</span>
-              <div style={{ flex: 1, height: "1px", background: "var(--c-border-faint)" }} />
-            </div>
-
-            {/* Join room */}
-            <form onSubmit={handleJoin} style={{ display: "flex", gap: "8px" }}>
-              <input
-                type="text"
-                placeholder="SALA-4F2"
-                value={roomInput}
-                onChange={(e) => setRoomInput(e.target.value)}
-                style={{
-                  flex: 1,
-                  minWidth: 0,
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  fontSize: "0.875rem",
-                  textTransform: "uppercase",
-                  outline: "none",
-                  background: "var(--c-surface)",
-                  border: "1px solid var(--c-border-faint)",
-                  color: "var(--c-text)",
-                  transition: "border-color 0.15s",
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = "var(--c-accent)")}
-                onBlur={(e) => (e.currentTarget.style.borderColor = "var(--c-border-faint)")}
-              />
-              <button
-                type="submit"
-                style={{
-                  padding: "10px 18px",
-                  borderRadius: "10px",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: "var(--c-surface-2)",
-                  color: "var(--c-text)",
-                  border: "1px solid var(--c-border)",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border-faint)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--c-surface-2)")}
-              >
-                Join
-              </button>
-            </form>
-
-            {/* Guest sign-in CTA */}
-            {!isLoggedIn && onSignIn && (
-              <button
-                onClick={onSignIn}
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--c-border-faint)",
-                  background: "var(--c-accent-dim)",
-                  color: "var(--c-accent)",
-                  fontSize: "0.8rem",
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "6px",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--c-border-faint)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "var(--c-accent-dim)")}
-              >
-                ♟ Sign in to track your progress
-              </button>
-            )}
+            {/* ── Mini stats (logged-in) ── */}
+            {isLoggedIn && <MiniStats username={user.username} />}
           </div>
-
-          {/* ── Mini stats (logged-in only) ── */}
-          {isLoggedIn && <MiniStats username={user.username} />}
         </div>
       </div>
     </motion.div>
+    </AppLayout>
   );
 }
