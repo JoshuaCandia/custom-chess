@@ -15,6 +15,7 @@ import type {
 } from "./types/chess";
 import { authRouter, verifyJwt, getUserFromToken } from "./auth";
 import { userRouter } from "./user";
+import { puzzleRouter } from "./puzzles";
 import { prisma } from "./db";
 
 const CLIENT_URL = process.env.CLIENT_URL ?? "http://localhost:5173";
@@ -25,6 +26,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(authRouter);
 app.use(userRouter);
+app.use(puzzleRouter);
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {

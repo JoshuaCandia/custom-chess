@@ -7,8 +7,16 @@ async function apiPost<T>(url: string, body: unknown): Promise<T> {
     credentials: "include",
     body: JSON.stringify(body),
   });
-  const data = await r.json();
-  if (!r.ok) throw new Error((data as { error: string }).error ?? "Unknown error");
+  const text = await r.text();
+  let data: unknown = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    }
+  }
+  if (!r.ok) throw new Error((data as { error?: string } | null)?.error ?? "Unknown error");
   return data as T;
 }
 

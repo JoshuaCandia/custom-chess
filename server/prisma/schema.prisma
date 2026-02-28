@@ -17,8 +17,31 @@ model User {
   elo          Int      @default(1200)
   createdAt    DateTime @default(now())
 
-  gamesAsWhite Game[] @relation("WhitePlayer")
-  gamesAsBlack Game[] @relation("BlackPlayer")
+  gamesAsWhite   Game[]          @relation("WhitePlayer")
+  gamesAsBlack   Game[]          @relation("BlackPlayer")
+  puzzleAttempts PuzzleAttempt[]
+}
+
+model Puzzle {
+  id       String          @id
+  fen      String
+  moves    String
+  rating   Int
+  themes   String
+  attempts PuzzleAttempt[]
+}
+
+model PuzzleAttempt {
+  id        String   @id @default(uuid())
+  userId    String
+  puzzleId  String
+  solved    Boolean
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId],   references: [id])
+  puzzle Puzzle @relation(fields: [puzzleId], references: [id])
+
+  @@unique([userId, puzzleId])
 }
 
 model Game {

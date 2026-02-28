@@ -22,7 +22,10 @@ export function useAuth() {
 
   const loginMutation = useMutation({
     mutationFn: apiLogin,
-    onSuccess: (user) => queryClient.setQueryData<AuthUser>(["me"], user),
+    onSuccess: (user) => {
+      if (user) queryClient.setQueryData<AuthUser>(["me"], user);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["me"] }),
   });
 
   const registerMutation = useMutation({
