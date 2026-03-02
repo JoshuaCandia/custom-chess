@@ -418,6 +418,14 @@ html.light {
   cursor: not-allowed;
 }
 
+/* Vertical divider (stats) */
+.divider-v {
+  width: 1px;
+  height: 32px;
+  background: var(--c-border-faint);
+  flex-shrink: 0;
+}
+
 /* Puzzle hub solved overlay */
 .puzzle-solved-overlay {
   position: absolute;
