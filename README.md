@@ -1,40 +1,42 @@
 # Custom Chess
 
-Ajedrez online en tiempo real para jugar contra otra persona, con reloj, chat de voz, rating ELO y puzzles de Lichess.
+[Leer en español](README.es.md)
 
-## Qué tiene
+Real-time online chess against another person, with clocks, voice chat, ELO rating and Lichess puzzles.
 
-- Una persona crea una sala y la otra se une. Los movimientos viajan por Socket.io y el servidor los valida con chess.js antes de reenviarlos, así que no se pueden mandar jugadas ilegales.
-- Cada jugador tiene su reloj según el control de tiempo de la partida, y se pierde por tiempo si llega a cero.
-- Si alguien se desconecta, el rival recibe el aviso y la partida se puede retomar cuando vuelve.
-- Se puede abandonar, ofrecer tablas y aceptarlas o rechazarlas.
-- Hay chat de texto y chat de voz. El de voz usa WebRTC, y la señalización (offer, answer y candidatos ICE) pasa por el mismo socket de la partida.
-- Al terminar cada partida se recalcula el ELO de los dos jugadores (K = 32, con un piso de 100) y la partida queda guardada con su resultado y el motivo.
-- Un script importa puzzles de la base pública de Lichess, los agrupa por dificultad según su rating y guarda los intentos de cada usuario.
-- Para entrar hay registro con email y contraseña, con un código de verificación que llega por mail, o login con Google. La sesión se guarda en un JWT dentro de una cookie.
-- También tiene perfil, temas para el tablero, sonidos y una versión pensada para mobile.
+## Features
+
+- One player creates a room and the other joins. Moves go through Socket.io, and the server validates them with chess.js before broadcasting, so illegal moves can't get through.
+- Each player has a clock based on the game's time control, and you lose on time if it runs out.
+- If someone disconnects, the opponent gets notified and the game can resume when they come back.
+- Players can resign, offer a draw, and accept or decline one.
+- There's text chat and voice chat. Voice uses WebRTC, and the signaling (offer, answer and ICE candidates) goes through the same game socket.
+- When a game ends, both players' ELO is recalculated (K = 32, with a floor of 100) and the game is saved with its result and reason.
+- A script imports puzzles from the public Lichess database, groups them by difficulty based on their rating, and tracks each user's attempts.
+- You can sign up with email and password, verified with a code sent by email, or sign in with Google. The session is stored as a JWT in a cookie.
+- It also has user profiles, board themes, sound effects and a mobile-friendly layout.
 
 ## Stack
 
-**Cliente:** React, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, TanStack Query, Zustand, React Hook Form con Zod, Framer Motion y Socket.io client.
+**Client:** React, TypeScript, Vite, Tailwind CSS, react-chessboard, chess.js, TanStack Query, Zustand, React Hook Form with Zod, Framer Motion and the Socket.io client.
 
-**Servidor:** Node.js, Express, TypeScript, Socket.io, chess.js, Prisma con PostgreSQL, Passport (local y Google OAuth), JWT, bcrypt y Nodemailer.
+**Server:** Node.js, Express, TypeScript, Socket.io, chess.js, Prisma with PostgreSQL, Passport (local and Google OAuth), JWT, bcrypt and Nodemailer.
 
-## Estructura
+## Structure
 
 ```
 client/          React + Vite
 server/
-  src/           API REST, sockets, auth, puzzles y usuarios
-  prisma/        schema y migraciones
-  scripts/       importación de puzzles de Lichess
+  src/           REST API, sockets, auth, puzzles and users
+  prisma/        schema and migrations
+  scripts/       Lichess puzzle import
 ```
 
-## Cómo correrlo
+## Running it locally
 
-Necesitás Node.js y una base de PostgreSQL.
+You need Node.js and a PostgreSQL database.
 
-1. Instalá las dependencias:
+1. Install the dependencies:
 
 ```bash
 npm install
@@ -42,10 +44,10 @@ npm install --prefix server
 npm install --prefix client
 ```
 
-2. Creá `server/.env` con estas variables:
+2. Create `server/.env` with these variables:
 
 ```
-DATABASE_URL=postgresql://usuario:password@localhost:5432/chess
+DATABASE_URL=postgresql://user:password@localhost:5432/chess
 JWT_SECRET=
 CLIENT_URL=http://localhost:5173
 PORT=
@@ -58,7 +60,7 @@ EMAIL_PASS=
 EMAIL_FROM=
 ```
 
-3. Corré las migraciones y cargá los puzzles:
+3. Run the migrations and load the puzzles:
 
 ```bash
 cd server
@@ -67,7 +69,7 @@ cd ..
 npm run seed:puzzles
 ```
 
-4. Levantá cliente y servidor juntos:
+4. Start the client and the server together:
 
 ```bash
 npm run dev
